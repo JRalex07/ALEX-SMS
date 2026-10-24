@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "981819763614",
+    "project_id": "lav-school-sms-2026",
+    "storage_bucket": "lav-school-sms-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:981819763614:android:3f59d3b5b43b6ad0dd848f",
+        "android_client_info": {
+          "package_name": "com.lav.schoolsms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDv0rIbdEkcLjZeUa_J8hw70vyFln4AZ2Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

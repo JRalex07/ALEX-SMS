@@ -1,0 +1,45 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.returnLibraryBook = exports.issueLibraryBook = exports.transferStudentCohort = exports.assignTeacherScope = exports.updateStaffRole = exports.updateStaffStatus = exports.processRefund = exports.createFeeStructure = exports.createFeeInvoice = exports.recordOfflinePayment = exports.phonepeWebhook = exports.razorpayWebhook = exports.cashfreeWebhook = exports.getReceiptDownloadUrl = exports.getReportCardDownloadUrl = exports.getWardAttendanceHistory = exports.getWardMarks = exports.getWardInvoices = exports.unlinkGuardian = exports.linkGuardian = exports.unpublishNotice = exports.publishNotice = exports.publishExamResults = exports.adminCorrectMark = exports.finalizeAttendanceSession = exports.approveAttendanceSession = void 0;
+const admin = require("firebase-admin");
+// Initialize Firebase Admin SDK
+admin.initializeApp();
+// Export all Cloud Functions
+var attendance_1 = require("./attendance/attendance");
+Object.defineProperty(exports, "approveAttendanceSession", { enumerable: true, get: function () { return attendance_1.approveAttendanceSession; } });
+Object.defineProperty(exports, "finalizeAttendanceSession", { enumerable: true, get: function () { return attendance_1.finalizeAttendanceSession; } });
+var marks_1 = require("./examinations/marks");
+Object.defineProperty(exports, "adminCorrectMark", { enumerable: true, get: function () { return marks_1.adminCorrectMark; } });
+Object.defineProperty(exports, "publishExamResults", { enumerable: true, get: function () { return marks_1.publishExamResults; } });
+var notices_1 = require("./notices/notices");
+Object.defineProperty(exports, "publishNotice", { enumerable: true, get: function () { return notices_1.publishNotice; } });
+Object.defineProperty(exports, "unpublishNotice", { enumerable: true, get: function () { return notices_1.unpublishNotice; } });
+var guardians_1 = require("./guardians/guardians");
+Object.defineProperty(exports, "linkGuardian", { enumerable: true, get: function () { return guardians_1.linkGuardian; } });
+Object.defineProperty(exports, "unlinkGuardian", { enumerable: true, get: function () { return guardians_1.unlinkGuardian; } });
+var wardQueries_1 = require("./queries/wardQueries");
+Object.defineProperty(exports, "getWardInvoices", { enumerable: true, get: function () { return wardQueries_1.getWardInvoices; } });
+Object.defineProperty(exports, "getWardMarks", { enumerable: true, get: function () { return wardQueries_1.getWardMarks; } });
+Object.defineProperty(exports, "getWardAttendanceHistory", { enumerable: true, get: function () { return wardQueries_1.getWardAttendanceHistory; } });
+var signedUrls_1 = require("./reports/signedUrls");
+Object.defineProperty(exports, "getReportCardDownloadUrl", { enumerable: true, get: function () { return signedUrls_1.getReportCardDownloadUrl; } });
+Object.defineProperty(exports, "getReceiptDownloadUrl", { enumerable: true, get: function () { return signedUrls_1.getReceiptDownloadUrl; } });
+var webhooks_1 = require("./payments/webhooks");
+Object.defineProperty(exports, "cashfreeWebhook", { enumerable: true, get: function () { return webhooks_1.cashfreeWebhook; } });
+Object.defineProperty(exports, "razorpayWebhook", { enumerable: true, get: function () { return webhooks_1.razorpayWebhook; } });
+Object.defineProperty(exports, "phonepeWebhook", { enumerable: true, get: function () { return webhooks_1.phonepeWebhook; } });
+var offline_1 = require("./payments/offline");
+Object.defineProperty(exports, "recordOfflinePayment", { enumerable: true, get: function () { return offline_1.recordOfflinePayment; } });
+Object.defineProperty(exports, "createFeeInvoice", { enumerable: true, get: function () { return offline_1.createFeeInvoice; } });
+Object.defineProperty(exports, "createFeeStructure", { enumerable: true, get: function () { return offline_1.createFeeStructure; } });
+Object.defineProperty(exports, "processRefund", { enumerable: true, get: function () { return offline_1.processRefund; } });
+var staff_1 = require("./admin/staff");
+Object.defineProperty(exports, "updateStaffStatus", { enumerable: true, get: function () { return staff_1.updateStaffStatus; } });
+Object.defineProperty(exports, "updateStaffRole", { enumerable: true, get: function () { return staff_1.updateStaffRole; } });
+Object.defineProperty(exports, "assignTeacherScope", { enumerable: true, get: function () { return staff_1.assignTeacherScope; } });
+var students_1 = require("./admin/students");
+Object.defineProperty(exports, "transferStudentCohort", { enumerable: true, get: function () { return students_1.transferStudentCohort; } });
+var circulation_1 = require("./library/circulation");
+Object.defineProperty(exports, "issueLibraryBook", { enumerable: true, get: function () { return circulation_1.issueLibraryBook; } });
+Object.defineProperty(exports, "returnLibraryBook", { enumerable: true, get: function () { return circulation_1.returnLibraryBook; } });
+//# sourceMappingURL=index.js.map
