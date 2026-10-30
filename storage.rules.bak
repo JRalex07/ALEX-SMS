@@ -1,0 +1,111 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isActive() {
+      return isAuthenticated() && request.auth.token.isActive == true;
+    }
+
+    // Cached User Document Helper for Live Verification in Storage
+    function getLiveUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Authoritative Live Status Check for Storage
+    function isLiveActive() {
+      return isActive() && (getLiveUserData().status == 'active' || (!('status' in getLiveUserData()) && getLiveUserData().isActive == true));
+    }
+
+    // Live Privileged Role Checks: Enforces live role from users/{uid} to prevent role-demotion token bypass
+    function isLiveSchoolAdmin() {
+      return isLiveActive() && request.auth.token.role == 'school_admin' && getLiveUserData().role == 'school_admin';
+    }
+
+    function isLiveAdmissions() {
+      return isLiveActive() && (getLiveUserData().role == 'admissions_officer' || getLiveUserData().role == 'school_admin');
+    }
+
+    function isLiveTeacher() {
+      return isLiveActive() && request.auth.token.role == 'teacher' && getLiveUserData().role == 'teacher';
+    }
+
+    function isLiveParent() {
+      return isLiveActive() && request.auth.token.role == 'parent_guardian' && getLiveUserData().role == 'parent_guardian';
+    }
+
+    // 1. Public Assets (Claim-only read; max 1h delay on suspension)
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isLiveSchoolAdmin()
+                            && request.resource.size < 5 * 1024 * 1024
+                            && request.resource.contentType.matches('image/(jpeg|png|webp|svg\\+xml)');
+      allow delete: if isLiveSchoolAdmin();
+    }
+
+    // 2. Profile Avatars (Tier 2: Live account check enforced for member privacy; immediate suspension revocation)
+    match /profile_photos/{userId}/{fileName} {
+      allow read: if isLiveActive();
+      allow create, update: if isLiveActive() 
+                            && (request.auth.uid == userId || isLiveSchoolAdmin())
+                            && request.resource.size < 2 * 1024 * 1024
+                            && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if isLiveActive() && (request.auth.uid == userId || isLiveSchoolAdmin());
+    }
+
+    // 3. Student Identification Documents (Gated by isLiveActive)
+    match /student_records/{studentId}/{documentType}/{fileName} {
+      allow read: if isLiveSchoolAdmin() 
+                  || isLiveAdmissions()
+                  || (isLiveParent() && request.auth.uid in firestore.get(/databases/(default)/documents/students/$(studentId)).data.guardianUserIds);
+      allow create, update: if (isLiveSchoolAdmin() || isLiveAdmissions())
+                            && request.resource.size < 10 * 1024 * 1024
+                            && request.resource.contentType.matches('(image/(jpeg|png)|application/pdf)');
+      allow delete: if isLiveSchoolAdmin();
+    }
+
+    // 4. Study Materials Uploads (Class-Specific and Section-Specific Isolation & Live Status)
+    match /study_materials/{classId}/{fileName} {
+      allow read: if isLiveActive() && (
+        isLiveSchoolAdmin() 
+        || (isLiveTeacher() && classId in request.auth.token.assignedClasses)
+        || (isLiveParent() && request.auth.token.wardClasses != null && classId in request.auth.token.wardClasses)
+      );
+      allow create: if ((isLiveTeacher() && classId in request.auth.token.assignedClasses && request.resource.metadata.uploadedBy == request.auth.uid) || isLiveSchoolAdmin())
+                    && request.resource.size < 25 * 1024 * 1024
+                    && request.resource.contentType.matches('(application/pdf|application/zip|image/.*|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document)');
+      allow update: if (isLiveSchoolAdmin() || (isLiveTeacher() && classId in request.auth.token.assignedClasses && resource.metadata.uploadedBy == request.auth.uid && request.resource.metadata.uploadedBy == request.auth.uid))
+                    && request.resource.size < 25 * 1024 * 1024
+                    && request.resource.contentType.matches('(application/pdf|application/zip|image/.*|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document)');
+      allow delete: if (isLiveTeacher() && classId in request.auth.token.assignedClasses && resource.metadata.uploadedBy == request.auth.uid) || isLiveSchoolAdmin();
+    }
+
+    match /study_materials/{classId}/{sectionId}/{fileName} {
+      allow read: if isLiveActive() && (
+        isLiveSchoolAdmin() 
+        || (isLiveTeacher() && classId in request.auth.token.assignedClasses && (request.auth.token.assignedSections != null && sectionId in request.auth.token.assignedSections))
+        || (isLiveParent() && request.auth.token.wardClasses != null && classId in request.auth.token.wardClasses && (request.auth.token.wardSections != null && sectionId in request.auth.token.wardSections))
+      );
+      allow create: if ((isLiveTeacher() && classId in request.auth.token.assignedClasses && (request.auth.token.assignedSections != null && sectionId in request.auth.token.assignedSections) && request.resource.metadata.uploadedBy == request.auth.uid) || isLiveSchoolAdmin())
+                    && request.resource.size < 25 * 1024 * 1024
+                    && request.resource.contentType.matches('(application/pdf|application/zip|image/.*|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document)');
+      allow update: if (isLiveSchoolAdmin() || (isLiveTeacher() && classId in request.auth.token.assignedClasses && (request.auth.token.assignedSections != null && sectionId in request.auth.token.assignedSections) && resource.metadata.uploadedBy == request.auth.uid && request.resource.metadata.uploadedBy == request.auth.uid))
+                    && request.resource.size < 25 * 1024 * 1024
+                    && request.resource.contentType.matches('(application/pdf|application/zip|image/.*|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document)');
+      allow delete: if (isLiveTeacher() && classId in request.auth.token.assignedClasses && (request.auth.token.assignedSections != null && sectionId in request.auth.token.assignedSections) && resource.metadata.uploadedBy == request.auth.uid) || isLiveSchoolAdmin();
+    }
+
+    // 5. Secure Generated Reports & Receipts (PDF)
+    // ARCHITECTURAL DECISION: Signed-URL-Only Access Model Enforced
+    // Direct client reads and writes are strictly denied. Access to confidential report cards and receipts
+    // is mediated exclusively via short-lived (15-minute) signed download URLs generated by trusted
+    // Cloud Functions ('getReportCardDownloadUrl', 'getReceiptDownloadUrl') after verifying live account status,
+    // active enrollment, published status, and relationship authorization.
+    match /secure_reports/{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

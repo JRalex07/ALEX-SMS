@@ -3,7 +3,7 @@ import '../../core/constants/role_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../models/fee_model.dart';
 import '../../models/student_model.dart';
-import 'fee_receipt_dialog.dart';
+import 'print_preview_dialog.dart';
 
 class PaymentModal extends StatefulWidget {
   final StudentInvoice invoice;
@@ -117,8 +117,16 @@ class _PaymentModalState extends State<PaymentModal> {
                   : 'partial',
         );
 
-        FeeReceiptDialog.show(context,
-            invoice: updatedInvoice, student: widget.student);
+        final receiptNo =
+            'REC-2026-${updatedInvoice.invoiceId.replaceAll('INV_', '')}';
+        PrintPreviewDialog.showReceipt(
+          context,
+          invoice: updatedInvoice,
+          paymentAmountPaise: parse.amountPaise!,
+          paymentMethod: _selectedGateway,
+          transactionId: receiptNo,
+          student: widget.student,
+        );
       }
     } catch (e) {
       if (mounted) {

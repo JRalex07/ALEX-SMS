@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import '../../models/student_model.dart';
 import '../../models/fee_model.dart';
@@ -8,6 +9,10 @@ import 'data_export_stub.dart' if (dart.library.html) 'data_export_web.dart'
 
 class DataExportService {
   DataExportService._();
+
+  static void exportStudents(BuildContext context, List<Student> students) {
+    exportStudentsCsv(students);
+  }
 
   static void exportStudentsCsv(List<Student> students) {
     final buffer = StringBuffer();
@@ -76,6 +81,21 @@ class DataExportService {
 
     _downloadCsv(buffer.toString(),
         'attendance_summary_${DateTime.now().millisecondsSinceEpoch}.csv');
+  }
+
+  static void exportAuditLogsCsv(List<Map<String, dynamic>> logs) {
+    final buffer = StringBuffer();
+    buffer.writeln('Action,Actor Email,Timestamp,Details');
+    for (final log in logs) {
+      final action = _escapeCsv(log['action']?.toString() ?? 'SYSTEM_EVENT');
+      final actor = _escapeCsv(log['actorEmail']?.toString() ?? 'Automated System');
+      final timestamp = _escapeCsv(log['timestamp']?.toString() ?? 'N/A');
+      final details = _escapeCsv(log['details']?.toString() ?? '');
+      buffer.writeln('$action,$actor,$timestamp,$details');
+    }
+
+    _downloadCsv(buffer.toString(),
+        'audit_logs_${DateTime.now().millisecondsSinceEpoch}.csv');
   }
 
   static void _downloadCsv(String content, String filename) {

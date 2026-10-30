@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/role_colors.dart';
 import '../../core/services/print_service.dart';
+import '../../core/services/print_document_generator.dart';
 import '../../models/student_model.dart';
 
 class AttendanceRegisterDialog extends StatelessWidget {
@@ -60,18 +61,10 @@ class AttendanceRegisterDialog extends StatelessWidget {
               currentSectionId: 'A',
               currentAcademicYearId: 'AY_2026_2027',
             ),
-            Student(
-              studentId: 'STU_003',
-              admissionNumber: 'ADM-2026-003',
-              fullName: 'Rohan Gupta',
-              currentClassId: '10',
-              currentSectionId: 'A',
-              currentAcademicYearId: 'AY_2026_2027',
-            ),
           ];
     final effectiveMap = attendanceMap.isNotEmpty
         ? attendanceMap
-        : const {'STU_001': 'P', 'STU_002': 'P', 'STU_003': 'A'};
+        : const {'STU_001': 'P', 'STU_002': 'P'};
 
     final dateStr = date.toIso8601String().split('T').first;
     final presentCount = effectiveMap.values.where((v) => v == 'P').length;
@@ -79,7 +72,7 @@ class AttendanceRegisterDialog extends StatelessWidget {
     final lateCount = effectiveMap.values.where((v) => v == 'L').length;
     final excusedCount = effectiveMap.values.where((v) => v == 'E').length;
     final total = effectiveStudents.length;
-    final rate = total > 0 ? (presentCount / total) * 100 : 0.0;
+    final rate = total > 0 ? (presentCount / total) * 100 : null;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -126,7 +119,24 @@ class AttendanceRegisterDialog extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 8),
                         ),
-                        onPressed: () => PrintService.printDocument(),
+                        onPressed: () {
+                          final dateStr =
+                              date.toLocal().toString().split(' ').first;
+                          final ref = 'ATT-$classId-$sectionId-$dateStr';
+                          final html =
+                              PrintDocumentGenerator.generateAttendanceRegisterHtml(
+                            classId: classId,
+                            sectionId: sectionId,
+                            date: dateStr,
+                            sessions: const [],
+                            students: students,
+                            referenceNumber: ref,
+                          );
+                          PrintService.printDocument(
+                            htmlContent: html,
+                            documentTitle: 'Attendance Register - $ref',
+                          );
+                        },
                       ),
                       const SizedBox(width: 8),
                       IconButton(
@@ -198,7 +208,7 @@ class AttendanceRegisterDialog extends StatelessWidget {
                               const Color(0xFFFEE2E2), const Color(0xFFDC2626)),
                           _badge('Late/Excused: ${lateCount + excusedCount}',
                               const Color(0xFFFEF3C7), const Color(0xFFD97706)),
-                          _badge('Rate: ${rate.toStringAsFixed(1)}%',
+                          _badge('Rate: ${rate == null ? '—' : '${rate.toStringAsFixed(1)}%'}',
                               const Color(0xFFE0F2FE), const Color(0xFF0284C7)),
                         ],
                       ),
@@ -249,11 +259,18 @@ class AttendanceRegisterDialog extends StatelessWidget {
                                           fontSize: 11))),
                             ],
                           ),
+                          if (effectiveStudents.isEmpty)
+                            const TableRow(children: [
+                              Padding(padding: EdgeInsets.all(12), child: Text('—', textAlign: TextAlign.center)),
+                              Padding(padding: EdgeInsets.all(12), child: Text('No roster supplied')),
+                              Padding(padding: EdgeInsets.all(12), child: Text('No attendance records are available for this register.')),
+                              Padding(padding: EdgeInsets.all(12), child: Text('—', textAlign: TextAlign.center)),
+                            ]),
                           ...List.generate(effectiveStudents.length, (index) {
                             final s = effectiveStudents[index];
                             final sId = s.studentId;
                             final sName = s.fullName;
-                            final status = effectiveMap[sId] ?? 'P';
+                            final status = effectiveMap[sId] ?? '—';
                             final color = status == 'P'
                                 ? const Color(0xFF16A34A)
                                 : (status == 'A'

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AppUser {
   final String uid;
   final String email;
+  final String phoneNumber;
   final String displayName;
   final String role; // Exactly one of the 6 active roles
   final String status; // 'active', 'suspended', 'pending'
@@ -16,6 +17,7 @@ class AppUser {
   const AppUser({
     required this.uid,
     required this.email,
+    this.phoneNumber = '',
     required this.displayName,
     required this.role,
     this.status = 'active',
@@ -40,6 +42,7 @@ class AppUser {
     return AppUser(
       uid: doc.id,
       email: data['email'] ?? '',
+      phoneNumber: data['phoneNumber'] ?? '',
       displayName: data['displayName'] ?? '',
       role: data['role'] ?? 'parent_guardian',
       status: data['status'] ?? 'active',
@@ -56,6 +59,7 @@ class AppUser {
     return {
       'uid': uid,
       'email': email,
+      'phoneNumber': phoneNumber,
       'displayName': displayName,
       'role': role,
       'status': status,

@@ -5,7 +5,8 @@ import '../repositories/parent_services_repository.dart';
 import 'auth_providers.dart';
 import 'child_context_provider.dart';
 
-final parentServicesRepositoryProvider = Provider<ParentServicesRepository>((ref) {
+final parentServicesRepositoryProvider =
+    Provider<ParentServicesRepository>((ref) {
   return ParentServicesRepository();
 });
 
@@ -39,20 +40,22 @@ final childSyllabusProvider = FutureProvider<List<SyllabusItem>>((ref) async {
 
 /// 3. Parent Chat Stream with School (by recipient role: 'teacher', 'school_admin', 'accountant')
 final parentChatStreamProvider =
-    StreamProvider.family<List<ParentChatMessage>, String>((ref, recipientRole) {
+    StreamProvider.family<List<ParentChatMessage>, String>(
+        (ref, recipientRole) {
   final user = ref.watch(currentUserProfileProvider).value;
-  final parentUid = user?.uid ?? 'guest_parent';
+  final parentUid = user?.uid ?? '';
   final repo = ref.watch(parentServicesRepositoryProvider);
-
+  if (parentUid.isEmpty) return Stream.value(const <ParentChatMessage>[]);
   return repo.getChatStream(parentUid: parentUid, recipientRole: recipientRole);
 });
 
 /// 4. Parent Complaints & Grievance History
-final parentComplaintsProvider = FutureProvider<List<ParentComplaint>>((ref) async {
+final parentComplaintsProvider =
+    FutureProvider<List<ParentComplaint>>((ref) async {
   final user = ref.watch(currentUserProfileProvider).value;
-  final parentUid = user?.uid ?? 'guest_parent';
+  final parentUid = user?.uid ?? '';
+  if (parentUid.isEmpty) return [];
   final repo = ref.watch(parentServicesRepositoryProvider);
-
   return repo.getComplaints(parentUid: parentUid);
 });
 

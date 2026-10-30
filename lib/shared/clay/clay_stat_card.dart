@@ -48,12 +48,7 @@ class ClayStatCard extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.1,
-                  ),
+                  style: AppleTypography.callout(color: AppColors.textSecondary),
                 ),
               ),
               const SizedBox(width: 8),
@@ -73,12 +68,7 @@ class ClayStatCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-              ),
+              style: AppleTypography.largeTitle(color: AppColors.textPrimary),
             ),
           ),
           if (subtitle != null || trend != null || trailingBadge != null) ...[

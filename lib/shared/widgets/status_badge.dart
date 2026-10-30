@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/role_colors.dart';
 
+enum StatusType { success, warning, danger, info, neutral }
+
 class StatusBadge extends StatelessWidget {
   final String label;
   final Color backgroundColor;
@@ -10,10 +12,30 @@ class StatusBadge extends StatelessWidget {
   const StatusBadge({
     super.key,
     required this.label,
-    required this.backgroundColor,
-    required this.textColor,
+    Color? backgroundColor,
+    Color? textColor,
+    StatusType? type,
     this.icon,
-  });
+  })  : backgroundColor = backgroundColor ??
+            (type == StatusType.success
+                ? AppColors.successBg
+                : type == StatusType.warning
+                    ? AppColors.warningBg
+                    : type == StatusType.danger
+                        ? AppColors.dangerBg
+                        : type == StatusType.info
+                            ? AppColors.infoBg
+                            : AppColors.surfaceMuted),
+        textColor = textColor ??
+            (type == StatusType.success
+                ? AppColors.successGreen
+                : type == StatusType.warning
+                    ? AppColors.warningAmber
+                    : type == StatusType.danger
+                        ? AppColors.dangerRed
+                        : type == StatusType.info
+                            ? AppColors.infoSky
+                            : AppColors.textSecondary);
 
   factory StatusBadge.success(String label, {IconData? icon}) {
     return StatusBadge(

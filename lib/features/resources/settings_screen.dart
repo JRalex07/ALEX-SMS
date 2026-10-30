@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/app_routes.dart';
 import '../../core/constants/role_colors.dart';
 import '../../providers/auth_providers.dart';
 import '../../shared/widgets/responsive_scaffold.dart';
@@ -78,12 +79,48 @@ class SettingsScreen extends ConsumerWidget {
                         fontSize: 12, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 20),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.lock_reset, size: 16),
-                    label: const Text('Change Password / Credentials'),
-                    onPressed: () {
-                      context.push('/forgot-password');
-                    },
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      ElevatedButton.icon(
+                        icon: Icon(
+                          role == 'parent_guardian'
+                              ? Icons.phone_android
+                              : Icons.lock_reset,
+                          size: 16,
+                        ),
+                        label: Text(role == 'parent_guardian'
+                            ? 'Change Registered Phone Number'
+                            : 'Change Password'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: roleColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                        onPressed: () {
+                          if (role == 'parent_guardian') {
+                            context.push(AppRoutes.changePhone);
+                          } else {
+                            context.push(AppRoutes.changePassword);
+                          }
+                        },
+                      ),
+                      if (role == 'school_admin')
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.manage_accounts_outlined,
+                              size: 16),
+                          label: const Text('Manage User Credentials & Emails'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                          ),
+                          onPressed: () {
+                            context.push(AppRoutes.adminUserCredentials);
+                          },
+                        ),
+                    ],
                   ),
                 ],
               ),

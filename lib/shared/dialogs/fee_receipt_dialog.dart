@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/role_colors.dart';
-import '../../core/services/print_service.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/services/print_service.dart';
+import '../../core/services/print_document_generator.dart';
 import '../../models/fee_model.dart';
 import '../../models/student_model.dart';
 
@@ -80,7 +81,22 @@ class FeeReceiptDialog extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 8),
                         ),
-                        onPressed: () => PrintService.printDocument(),
+                        onPressed: () {
+                          final htmlContent =
+                              PrintDocumentGenerator.generateReceiptHtml(
+                            invoice: invoice,
+                            paymentAmountPaise: invoice.paidAmountPaise,
+                            paymentMethod: 'ONLINE / BANK TRANSFER',
+                            transactionId: receiptNo,
+                            student: student,
+                            referenceNumber: receiptNo,
+                          );
+                          PrintService.printDocument(
+                            htmlContent: htmlContent,
+                            documentTitle:
+                                'Official Fee Payment Receipt - $receiptNo',
+                          );
+                        },
                       ),
                       const SizedBox(width: 8),
                       IconButton(
@@ -157,7 +173,7 @@ class FeeReceiptDialog extends StatelessWidget {
                                 _row('Student ID', invoice.studentId),
                                 const SizedBox(height: 4),
                                 _row('Student Name',
-                                    student?.fullName ?? 'Aarav Kumar'),
+                                    student?.fullName ?? 'Student ${invoice.studentId}'),
                                 const SizedBox(height: 4),
                                 _row('Invoice Reference', invoice.invoiceId),
                               ],

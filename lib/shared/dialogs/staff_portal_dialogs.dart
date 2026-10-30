@@ -4,7 +4,6 @@ import '../../core/constants/role_colors.dart';
 import '../../models/student_model.dart';
 import '../../models/examination_model.dart';
 import '../../providers/auth_providers.dart';
-import '../../providers/child_context_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../clay/clay.dart';
 
@@ -386,7 +385,9 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
                           style: TextStyle(
                               color: AppColors.textSecondary, fontSize: 13));
                     }
-                    if (_selectedStudentId.isEmpty) {
+                    if (students.isNotEmpty &&
+                        !students
+                            .any((s) => s.studentId == _selectedStudentId)) {
                       _selectedStudentId = students.first.studentId;
                     }
 
@@ -440,16 +441,7 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
                               child: DropdownButton<String>(
                                 value: _targetClass,
                                 isExpanded: true,
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: '9', child: Text('Class 9')),
-                                  DropdownMenuItem(
-                                      value: '10', child: Text('Class 10')),
-                                  DropdownMenuItem(
-                                      value: '11', child: Text('Class 11')),
-                                  DropdownMenuItem(
-                                      value: '12', child: Text('Class 12')),
-                                ],
+                                items: _buildClassDropdownItems(),
                                 onChanged: (val) {
                                   if (val != null) {
                                     setState(() => _targetClass = val);
@@ -478,14 +470,7 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
                               child: DropdownButton<String>(
                                 value: _targetSection,
                                 isExpanded: true,
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 'A', child: Text('Section A')),
-                                  DropdownMenuItem(
-                                      value: 'B', child: Text('Section B')),
-                                  DropdownMenuItem(
-                                      value: 'C', child: Text('Section C')),
-                                ],
+                                items: _buildSectionDropdownItems(),
                                 onChanged: (val) {
                                   if (val != null) {
                                     setState(() => _targetSection = val);
@@ -535,6 +520,45 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
         ),
       ),
     );
+  }
+
+  List<DropdownMenuItem<String>> _buildClassDropdownItems() {
+    final classValues = <String>{
+      'Class 9',
+      'Class 10',
+      'Class 11',
+      'Class 12',
+      '9',
+      '10',
+      '11',
+      '12',
+    };
+    if (_targetClass.isNotEmpty) {
+      classValues.add(_targetClass);
+    }
+
+    return classValues.map((cls) {
+      final label = cls.startsWith('Class ') ? cls : 'Class $cls';
+      return DropdownMenuItem<String>(
+        value: cls,
+        child: Text(label),
+      );
+    }).toList();
+  }
+
+  List<DropdownMenuItem<String>> _buildSectionDropdownItems() {
+    final sectionValues = <String>{'A', 'B', 'C', 'D'};
+    if (_targetSection.isNotEmpty) {
+      sectionValues.add(_targetSection);
+    }
+
+    return sectionValues.map((sec) {
+      final label = sec.startsWith('Section ') ? sec : 'Section $sec';
+      return DropdownMenuItem<String>(
+        value: sec,
+        child: Text(label),
+      );
+    }).toList();
   }
 }
 
@@ -693,6 +717,7 @@ class SubmitMarksDialog extends ConsumerStatefulWidget {
   final Student student;
   final String subject;
   final String examId;
+  final String subjectId;
   final int initialCa1;
   final int initialCa2;
   final int initialExam;
@@ -701,20 +726,22 @@ class SubmitMarksDialog extends ConsumerStatefulWidget {
     super.key,
     required this.student,
     this.subject = 'Mathematics',
-    this.examId = 'EXAM_TERM1_2026',
-    this.initialCa1 = 18,
-    this.initialCa2 = 19,
-    this.initialExam = 52,
+    this.examId = '',
+    this.subjectId = 'SUB_MATH',
+    this.initialCa1 = 0,
+    this.initialCa2 = 0,
+    this.initialExam = 0,
   });
 
   static Future<void> show(
     BuildContext context, {
     required Student student,
     String subject = 'Mathematics',
-    String examId = 'EXAM_TERM1_2026',
-    int initialCa1 = 18,
-    int initialCa2 = 19,
-    int initialExam = 52,
+    String examId = '',
+    String subjectId = 'SUB_MATH',
+    int initialCa1 = 0,
+    int initialCa2 = 0,
+    int initialExam = 0,
   }) {
     return showDialog(
       context: context,
@@ -723,6 +750,7 @@ class SubmitMarksDialog extends ConsumerStatefulWidget {
         student: student,
         subject: subject,
         examId: examId,
+        subjectId: subjectId,
         initialCa1: initialCa1,
         initialCa2: initialCa2,
         initialExam: initialExam,
@@ -739,8 +767,7 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
   late final TextEditingController _ca1Controller;
   late final TextEditingController _ca2Controller;
   late final TextEditingController _examController;
-  final _commentController =
-      TextEditingController(text: 'Demonstrates strong analytical grasp.');
+  final _commentController = TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -803,12 +830,12 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
     setState(() => _isLoading = true);
     try {
       final markId =
-          'MRK_${widget.student.studentId}_${widget.subject}_${widget.examId}';
+          'MRK_${widget.student.studentId}_${widget.subjectId}_${widget.examId}';
       final mark = Mark(
         markId: markId,
         examId: widget.examId,
         studentId: widget.student.studentId,
-        subjectId: widget.subject,
+        subjectId: widget.subjectId,
         classId: widget.student.currentClassId,
         sectionId: widget.student.currentSectionId,
         academicYearId: widget.student.currentAcademicYearId,
@@ -818,7 +845,7 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
         isApproved: false,
         isPublished: false,
         teacherComment: _commentController.text.trim(),
-        updatedBy: 'TEACHER_AUTHENTICATED',
+        updatedBy: ref.read(currentUserProfileProvider).value?.uid ?? '',
       );
 
       final examRepo = ref.read(examRepositoryProvider);
@@ -880,7 +907,8 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
                             children: [
                               const Text('CA 1 (Max 20)',
                                   style: TextStyle(
-                                      fontWeight: FontWeight.w700, fontSize: 13)),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13)),
                               const SizedBox(height: 6),
                               ClayTextField(
                                 controller: _ca1Controller,
@@ -897,7 +925,8 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
                             children: [
                               const Text('CA 2 (Max 20)',
                                   style: TextStyle(
-                                      fontWeight: FontWeight.w700, fontSize: 13)),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13)),
                               const SizedBox(height: 6),
                               ClayTextField(
                                 controller: _ca2Controller,
@@ -914,7 +943,8 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
                             children: [
                               const Text('Exam (Max 60)',
                                   style: TextStyle(
-                                      fontWeight: FontWeight.w700, fontSize: 13)),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13)),
                               const SizedBox(height: 6),
                               ClayTextField(
                                 controller: _examController,
@@ -929,10 +959,11 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
                     const SizedBox(height: 16),
                     ClayContainer(
                       depth: ClayDepth.low,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       borderRadius: ClayTheme.radiusSm,
-                      surfaceColor: AppColors.teacherTeal.withValues(alpha: 0.08),
+                      surfaceColor:
+                          AppColors.teacherTeal.withValues(alpha: 0.08),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -956,8 +987,8 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
                     ),
                     const SizedBox(height: 16),
                     const Text('Teacher Comments',
-                        style:
-                            TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13)),
                     const SizedBox(height: 6),
                     ClayTextField(
                       controller: _commentController,
@@ -983,7 +1014,9 @@ class _SubmitMarksDialogState extends ConsumerState<SubmitMarksDialog> {
                               : () => _saveMark(isSubmitting: false),
                         ),
                         ClayButton(
-                          label: _isLoading ? 'Submitting...' : 'Submit for Review',
+                          label: _isLoading
+                              ? 'Submitting...'
+                              : 'Submit for Review',
                           variant: ClayButtonVariant.primary,
                           customColor: AppColors.teacherTeal,
                           onPressed: _isLoading

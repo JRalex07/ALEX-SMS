@@ -39,6 +39,9 @@ class FeeStructure {
   });
 
   bool get isGeneralSchoolWide => classId == null;
+  String get name => title;
+  List<FeeItem> get components => breakdown;
+  String get frequency => 'Annual / Termly';
 
   factory FeeStructure.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};

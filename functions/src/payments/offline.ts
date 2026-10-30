@@ -52,6 +52,12 @@ export const recordOfflinePayment = functions.https.onCall(
       }
 
       const invoiceData = invoiceDoc.data()!;
+      if (invoiceData.studentId !== studentId) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'The selected student does not match the invoice owner.'
+        );
+      }
       const totalAmountPaise = invoiceData.totalAmountPaise as number;
       const currentPaid = (invoiceData.paidAmountPaise as number) || 0;
       const currentOutstanding = (invoiceData.outstandingBalancePaise as number) ?? totalAmountPaise;

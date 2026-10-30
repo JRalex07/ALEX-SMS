@@ -1,4 +1,5 @@
 export '../../core/theme/clay_theme.dart';
+export '../../core/theme/apple_design_system.dart';
 export 'clay_container.dart';
 export 'clay_card.dart';
 export 'clay_stat_card.dart';

@@ -67,6 +67,7 @@ class LibraryLoan {
   });
 
   bool get isReturned => returnedAt != null || status == 'returned';
+  DateTime get issuedDate => issuedAt;
 
   factory LibraryLoan.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};

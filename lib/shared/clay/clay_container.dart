@@ -101,6 +101,16 @@ class _ClayContainerState extends State<ClayContainer> {
     );
 
     if (widget.onTap != null) {
+      final canAnimate = AppleMotion.canAnimate(context);
+      final scale = (_isPressed && canAnimate) ? 0.985 : 1.0;
+
+      final animatedContent = AnimatedScale(
+        scale: scale,
+        duration: _isPressed ? AppleMotion.pressDuration : AppleMotion.releaseDuration,
+        curve: _isPressed ? AppleMotion.curvePress : AppleMotion.curveRelease,
+        child: content,
+      );
+
       content = MouseRegion(
         cursor: widget.enableHover && kIsWeb
             ? SystemMouseCursors.click
@@ -117,7 +127,7 @@ class _ClayContainerState extends State<ClayContainer> {
           onTapCancel: () => setState(() => _isPressed = false),
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
-          child: content,
+          child: animatedContent,
         ),
       );
     }

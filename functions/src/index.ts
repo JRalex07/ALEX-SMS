@@ -12,6 +12,6 @@ export { getWardInvoices, getWardMarks, getWardAttendanceHistory } from './queri
 export { getReportCardDownloadUrl, getReceiptDownloadUrl } from './reports/signedUrls';
 export { cashfreeWebhook, razorpayWebhook, phonepeWebhook } from './payments/webhooks';
 export { recordOfflinePayment, createFeeInvoice, createFeeStructure, processRefund } from './payments/offline';
-export { updateStaffStatus, updateStaffRole, assignTeacherScope } from './admin/staff';
+export { updateStaffStatus, updateStaffRole, assignTeacherScope, initiateAdminEmailChange } from './admin/staff';
 export { transferStudentCohort } from './admin/students';
 export { issueLibraryBook, returnLibraryBook } from './library/circulation';

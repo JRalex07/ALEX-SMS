@@ -2,9 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/constants/role_colors.dart';
 import '../../providers/auth_providers.dart';
-import '../../shared/clay/clay.dart';
 
 enum WebLoginTab {
   staff,
@@ -13,10 +11,12 @@ enum WebLoginTab {
 
 /// Dedicated Desktop/Web Portal Login Experience.
 ///
-/// Designed exclusively for Flutter Web running in browser viewports.
-/// Features a two-column desktop workspace layout with an institutional
-/// branding panel on the left and a focused tactile clay authentication workspace on the right.
-/// Adapts cleanly into a single-column web portal header + card on narrower browser windows.
+/// Designed with an institutional School ERP presentation matching modern school portal designs:
+/// - Left side: Rich deep-blue gradient with organic ambient curves, high-impact typography
+///   "Everything your school needs, in one place.", feature pills, and institutional branding.
+/// - Top right corner: Dedicated floating Administrator Login quick-access button.
+/// - Right side: Clean, floating card with school crest, "Welcome back 👋", role switcher,
+///   modern input fields with icons, prominent "Sign In to Dashboard →" button, and security trust badge.
 class WebLoginScreen extends ConsumerStatefulWidget {
   final WebLoginTab initialTab;
 
@@ -31,6 +31,7 @@ class WebLoginScreen extends ConsumerStatefulWidget {
 
 class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
   late WebLoginTab _activeTab;
+  bool _isAdminMode = false;
 
   // Staff Form Controllers
   final _staffFormKey = GlobalKey<FormState>();
@@ -55,6 +56,38 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
   void initState() {
     super.initState();
     _activeTab = widget.initialTab;
+  }
+
+  @override
+  void didUpdateWidget(covariant WebLoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab &&
+        _activeTab != widget.initialTab) {
+      setState(() {
+        _activeTab = widget.initialTab;
+        _errorMessage = null;
+        _statusMessage = null;
+      });
+    }
+  }
+
+  void _navigateToTab(WebLoginTab tab) {
+    if (_activeTab == tab) return;
+    setState(() {
+      _activeTab = tab;
+      _isAdminMode = false;
+      _errorMessage = null;
+      _statusMessage = null;
+    });
+    try {
+      if (tab == WebLoginTab.staff) {
+        context.go('/login/staff');
+      } else {
+        context.go('/login');
+      }
+    } catch (_) {
+      // In standalone widget tests without GoRouter, state update is still applied
+    }
   }
 
   @override
@@ -210,274 +243,295 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
     }
   }
 
+  void _activateAdministratorMode() {
+    setState(() {
+      _isAdminMode = true;
+      _activeTab = WebLoginTab.staff;
+      _errorMessage = null;
+      _statusMessage =
+          'Administrator mode active. Sign in with institutional credentials.';
+      if (_emailController.text.isEmpty) {
+        _emailController.text = 'admin@lavsms.edu';
+      }
+    });
+  }
+
+  void _toggleAdministratorMode() {
+    setState(() {
+      if (_isAdminMode) {
+        _isAdminMode = false;
+        _statusMessage = null;
+      } else {
+        _activateAdministratorMode();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktopWidth = screenWidth >= 1024;
 
     return Scaffold(
-      backgroundColor: ClayTheme.clayCanvas,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktopWidth ? 48 : 24,
-              vertical: isDesktopWidth ? 40 : 24,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1140),
-              child: isDesktopWidth
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left: Institutional Introduction & Branding Panel
-                        Expanded(
-                          flex: 5,
-                          child: _buildInstitutionalPanel(),
-                        ),
-                        const SizedBox(width: 48),
-                        // Right: Interactive Clay Authentication Workspace
-                        Expanded(
-                          flex: 6,
-                          child: _buildWorkspaceCard(),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        _buildInstitutionalHeaderBanner(),
-                        const SizedBox(height: 24),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 540),
-                          child: _buildWorkspaceCard(),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
-      ),
+      backgroundColor: const Color(0xFFF1F5F9),
+      body:
+          isDesktopWidth ? _buildDesktopLayout() : _buildMobileOrTabletLayout(),
     );
   }
 
-  /// Wide Desktop Institutional Overview Panel
-  Widget _buildInstitutionalPanel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Crest and Brand Name
-        Row(
-          children: [
-            ClayContainer(
-              depth: ClayDepth.medium,
-              borderRadius: ClayTheme.radiusMd,
-              surfaceColor: Colors.white,
-              borderColor: AppColors.brandNavy.withValues(alpha: 0.15),
-              padding: const EdgeInsets.all(12),
-              child: const Icon(
-                Icons.school_rounded,
-                size: 32,
-                color: AppColors.brandNavy,
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'LAV ACADEMY',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.brandNavy,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    'School Management System • Web Portal',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 32),
+  /// Desktop Full-Bleed 2-Column ERP Portal Layout with Smooth Slide Transition
+  /// - When Staff Login is active: Staff Login workspace slides to the LEFT, Hero Banner slides to the RIGHT.
+  /// - When Parent Login is active: Hero Banner slides to the LEFT, Parent Login workspace slides to the RIGHT.
+  Widget _buildDesktopLayout() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isStaff = _activeTab == WebLoginTab.staff;
+        final totalWidth = constraints.maxWidth;
+        final heroWidth = totalWidth * (11.0 / 20.0);
+        final formWidth = totalWidth * (9.0 / 20.0);
+        const animDuration = Duration(milliseconds: 650);
+        const animCurve = Curves.easeInOutCubicEmphasized;
 
-        const Text(
-          'Unified Institutional Workspace',
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-            letterSpacing: -0.8,
-            height: 1.2,
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Official administrative, financial, academic, and parent portal for LAV Academy. Secure single-institution infrastructure protecting academic records, attendance logs, and fee transactions.',
-          style: TextStyle(
-            fontSize: 15,
-            height: 1.6,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 28),
-
-        // Institutional Pillars (Tactile feature cards)
-        _buildPillarTile(
-          icon: Icons.security_rounded,
-          iconColor: AppColors.adminIndigo,
-          title: 'Authoritative Role-Based Access',
-          description:
-              'Strict ReBAC matrix across Administrator, Teacher, Accountant, Admissions, Librarian, and Parent.',
-        ),
-        const SizedBox(height: 14),
-        _buildPillarTile(
-          icon: Icons.receipt_long_rounded,
-          iconColor: AppColors.accountantEmerald,
-          title: 'Audited Financial Ledgers',
-          description:
-              'Exact integer-paise calculations, automated invoice reconciliation, and official printable vouchers.',
-        ),
-        const SizedBox(height: 14),
-        _buildPillarTile(
-          icon: Icons.verified_user_rounded,
-          iconColor: AppColors.parentBlue,
-          title: 'Verified Guardian Safeguards',
-          description:
-              'Multi-factor phone authentication mapped directly to student records with zero mock fallbacks.',
-        ),
-        const SizedBox(height: 32),
-
-        // Session Information
-        const ClayContainer(
-          depth: ClayDepth.low,
-          borderRadius: ClayTheme.radiusSm,
-          surfaceColor: Color(0xFFF8FAFC),
-          borderColor: AppColors.borderLight,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
+        return SizedBox.expand(
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
             children: [
-              Icon(Icons.calendar_today_rounded,
-                  size: 16, color: AppColors.brandNavy),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Academic Session: 2026 – 2027 • Production Environment',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+              // Foundation canvas background
+              Positioned.fill(
+                child: Container(
+                  color: const Color(0xFFF1F5F9),
                 ),
+              ),
+
+              // Sliding Hero Branding Panel (Blue gradient canvas)
+              AnimatedPositioned(
+                duration: animDuration,
+                curve: animCurve,
+                top: 0,
+                bottom: 0,
+                left: isStaff ? formWidth : 0,
+                width: heroWidth,
+                child: _buildHeroPanel(),
+              ),
+
+              // Sliding Authentication Workspace Panel (Light grey canvas with floating card)
+              AnimatedPositioned(
+                duration: animDuration,
+                curve: animCurve,
+                top: 0,
+                bottom: 0,
+                left: isStaff ? 0 : heroWidth,
+                width: formWidth,
+                child: _buildAuthWorkspace(),
+              ),
+
+              // Dedicated Floating Navigation at the Corner of Screen
+              Positioned(
+                top: 24,
+                right: 32,
+                child: _buildCornerButton(),
               ),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  /// Compact Institutional Banner for Narrower Browser Windows
-  Widget _buildInstitutionalHeaderBanner() {
-    return const Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ClayContainer(
-              depth: ClayDepth.medium,
-              borderRadius: ClayTheme.radiusSm,
-              surfaceColor: Colors.white,
-              padding: EdgeInsets.all(10),
-              child: Icon(
-                Icons.school_rounded,
-                size: 26,
-                color: AppColors.brandNavy,
-              ),
-            ),
-            SizedBox(width: 12),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'LAV ACADEMY',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.brandNavy,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    'Web Portal • Academic Year 2026-2027',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  /// Left/Right Hero Branding Panel with rich blue gradient, layered organic curves, and feature chips
+  Widget _buildHeroPanel() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0F265C),
+            Color(0xFF143B8B),
+            Color(0xFF1A47A8),
+            Color(0xFF1E52C4),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildPillarTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String description,
-  }) {
-    return ClayContainer(
-      depth: ClayDepth.low,
-      borderRadius: ClayTheme.radiusMd,
-      surfaceColor: Colors.white,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 20, color: iconColor),
+          // Layered Organic Ambient Waves
+          CustomPaint(
+            painter: _SchoolHeroBackgroundPainter(),
           ),
-          const SizedBox(width: 14),
-          Expanded(
+          // Content
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 40),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                // School Header Crest & Title
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x26000000),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.school_rounded,
+                        size: 28,
+                        color: Color(0xFF1E3A8A),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'LAV ACADEMY',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Smart School Management System',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFFBFDBFE),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Spacer(flex: 2),
+
+                // Digital School Management Pill matching reference image
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome,
+                          color: Color(0xFFFDE047), size: 14),
+                      SizedBox(width: 8),
+                      Text(
+                        'DIGITAL SCHOOL MANAGEMENT',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
+                const SizedBox(height: 12),
+                const Text(
+                  'Unified Institutional Workspace',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF93C5FD),
+                    letterSpacing: 0.3,
                   ),
+                ),
+                const SizedBox(height: 24),
+
+                // Hero Main Heading
+                const Text(
+                  'Everything your\nschool needs, in one\nplace.',
+                  style: TextStyle(
+                    fontSize: 44,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: -1.2,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Subtitle
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 540),
+                  child: const Text(
+                    'Manage students, attendance, fees, examinations, communication and daily school operations from a single powerful ERP platform.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFFE2E8F0),
+                      height: 1.55,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Functional Feature Badges (Matching reference design)
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _buildHeroPill(
+                        Icons.person_outline_rounded, 'Student Management'),
+                    _buildHeroPill(Icons.account_balance_wallet_outlined,
+                        'Fees & Accounts'),
+                    _buildHeroPill(Icons.calendar_today_outlined, 'Attendance'),
+                    _buildHeroPill(Icons.school_outlined, 'Exams & Results'),
+                    _buildHeroPill(
+                        Icons.notifications_none_rounded, 'Notifications'),
+                    _buildHeroPill(
+                        Icons.people_outline_rounded, 'Parent Communication'),
+                  ],
+                ),
+
+                const Spacer(flex: 3),
+
+                // Bottom Footer
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '© 2026 LAV Academy ERP • Secure & Reliable School Management',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.65),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'School ERP Solution',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -487,143 +541,608 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
     );
   }
 
-  /// Authentication Workspace Card with Segmented Controls
-  Widget _buildWorkspaceCard() {
-    return ClayCard(
-      depth: ClayDepth.medium,
-      borderRadius: ClayTheme.radiusLg,
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  /// Floating Authentication Workspace Container with Centered Card
+  Widget _buildAuthWorkspace() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFF8FAFC),
+            Color(0xFFF1F5F9),
+            Color(0xFFE2E8F0),
+          ],
+        ),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: _buildFloatingAuthCard(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Narrow/Mobile Browser Layout with Responsive Adaptation
+  Widget _buildMobileOrTabletLayout() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top Row with School Branding and Corner Admin Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E3A8A),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.school_rounded,
+                                size: 18, color: Colors.white),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'LAV ACADEMY',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0F172A),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                Text(
+                                  'Web Portal • Academic Year 2026-2027',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildCornerButton(isDense: true),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _buildFloatingAuthCard(isCompact: true),
+                const SizedBox(height: 20),
+                const Center(
+                  child: Text(
+                    '© 2026 Raman Kumar Sharma • Secure & Verified Portal',
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Feature Pill Chip matching the reference visual style
+  Widget _buildHeroPill(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Portal Sign In',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.3,
+          Icon(icon, color: const Color(0xFF93C5FD), size: 16),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Select your institutional role to continue to your authorized dashboard.',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Portal Segmented Selector
-          ClaySegmentedControl(
-            selectedIndex: _activeTab == WebLoginTab.staff ? 0 : 1,
-            onSelectedIndexChanged: (index) {
-              setState(() {
-                _activeTab =
-                    index == 0 ? WebLoginTab.staff : WebLoginTab.parent;
-                _errorMessage = null;
-                _statusMessage = null;
-              });
-            },
-            items: const [
-              ClaySegmentItem(
-                label: 'Staff & Faculty',
-                icon: Icons.badge_rounded,
-              ),
-              ClaySegmentItem(
-                label: 'Parent / Guardian',
-                icon: Icons.family_restroom_rounded,
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Error & Status Banners
-          if (_errorMessage != null) ...[
-            ClayContainer(
-              depth: ClayDepth.low,
-              borderRadius: ClayTheme.radiusSm,
-              surfaceColor: AppColors.dangerBg,
-              borderColor: AppColors.dangerRed.withValues(alpha: 0.3),
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline_rounded,
-                      size: 20, color: AppColors.dangerRed),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.dangerRed,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-          ],
-
-          if (_statusMessage != null) ...[
-            ClayContainer(
-              depth: ClayDepth.low,
-              borderRadius: ClayTheme.radiusSm,
-              surfaceColor: AppColors.successBg,
-              borderColor: AppColors.successGreen.withValues(alpha: 0.3),
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_outline_rounded,
-                      size: 20, color: AppColors.successGreen),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _statusMessage!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.successGreen,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-          ],
-
-          // Active Tab Content
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _activeTab == WebLoginTab.staff
-                ? _buildStaffForm()
-                : _buildParentForm(),
           ),
         ],
       ),
     );
   }
 
-  /// Staff & Faculty Sign-in Form
+  /// Dedicated Floating Navigation Button located at the Corner of Screen
+  Widget _buildCornerButton({bool isDense = false}) {
+    final isStaff = _activeTab == WebLoginTab.staff;
+
+    return Tooltip(
+      message: isStaff
+          ? 'Switch to Parent & Guardian Portal (/login)'
+          : 'Switch to Staff & Faculty Institutional Login (/login/staff)',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (isStaff) {
+              _navigateToTab(WebLoginTab.parent);
+            } else {
+              _navigateToTab(WebLoginTab.staff);
+            }
+          },
+          borderRadius: BorderRadius.circular(24),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.symmetric(
+              horizontal: isDense ? 12 : 16,
+              vertical: isDense ? 7 : 9,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x18000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isStaff ? Icons.family_restroom_rounded : Icons.badge_rounded,
+                  size: isDense ? 15 : 18,
+                  color: const Color(0xFF1E3A8A),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isStaff
+                      ? (isDense ? 'Parents' : 'Parent / Guardian')
+                      : (isDense ? 'Staff' : 'Staff & Faculty'),
+                  style: TextStyle(
+                    fontSize: isDense ? 11 : 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E3A8A),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Floating Authentication Workspace Card (Design matching user-provided reference)
+  Widget _buildFloatingAuthCard({bool isCompact = false}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F0F172A),
+            blurRadius: 28,
+            offset: Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 20 : 32, vertical: isCompact ? 24 : 36),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Card Top Badge & School Info
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Icon(
+                  Icons.school_rounded,
+                  color: Color(0xFF1E3A8A),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'LAV ACADEMY',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    SizedBox(height: 1),
+                    Text(
+                      'SCHOOL MANAGEMENT PORTAL',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          // Header matching active portal (/login for Parent, /login/staff for Staff)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  _isAdminMode
+                      ? 'Administrative Login'
+                      : (_activeTab == WebLoginTab.staff
+                          ? 'Staff & Faculty'
+                          : 'Welcome back'),
+                  style: TextStyle(
+                    fontSize: isCompact ? 22 : 26,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.6,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _isAdminMode ? '🔐' : '👋',
+                style: TextStyle(fontSize: isCompact ? 20 : 24),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _isAdminMode
+                ? 'Sign in with institutional administrative credentials.'
+                : (_activeTab == WebLoginTab.staff
+                    ? 'Sign in to continue to your staff dashboard.'
+                    : 'Sign in to continue to your parent portal.'),
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Portal Sign In Sub-header Badge (No segmented slider!)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _activeTab == WebLoginTab.staff
+                          ? Icons.badge_rounded
+                          : Icons.family_restroom_rounded,
+                      size: 15,
+                      color: const Color(0xFF1E3A8A),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _activeTab == WebLoginTab.staff
+                            ? 'Staff Portal'
+                            : 'Parent Portal',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E3A8A),
+                          letterSpacing: 0.2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                  ),
+                ),
+                child: const Text(
+                  'Portal Sign In',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E40AF),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Feedback Status Banners
+          if (_errorMessage != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded,
+                      size: 18, color: Color(0xFFDC2626)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          if (_statusMessage != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline_rounded,
+                      size: 18, color: Color(0xFF16A34A)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _statusMessage!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF16A34A),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Active Mode Form with smooth reveal slide & fade transition
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.04, 0.0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: _activeTab == WebLoginTab.staff
+                ? KeyedSubtree(
+                    key: const ValueKey('staff_form'),
+                    child: _buildStaffForm(),
+                  )
+                : KeyedSubtree(
+                    key: const ValueKey('parent_form'),
+                    child: _buildParentForm(),
+                  ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Bottom Portal Switcher (Clean navigation between /login and /login/staff)
+          Center(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.center,
+              spacing: 4,
+              children: [
+                Icon(
+                  _activeTab == WebLoginTab.staff
+                      ? Icons.family_restroom_rounded
+                      : Icons.badge_outlined,
+                  size: 14,
+                  color: const Color(0xFF2563EB),
+                ),
+                Text(
+                  _activeTab == WebLoginTab.staff
+                      ? 'Parent / Guardian? '
+                      : 'Staff or Faculty? ',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                InkWell(
+                  onTap: () => _navigateToTab(
+                    _activeTab == WebLoginTab.staff
+                        ? WebLoginTab.parent
+                        : WebLoginTab.staff,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      _activeTab == WebLoginTab.staff
+                          ? 'Parent Portal Sign In →'
+                          : 'Staff & Faculty Sign In →',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Security Trust Badge (Matching reference design)
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.verified_user_outlined,
+                  size: 14, color: Color(0xFF10B981)),
+              SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Your information is protected with secure authentication',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Sub-footer
+          const Center(
+            child: Text(
+              'Powered by Raman Kumar Sharma',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Staff & Faculty Sign-in Form with Clean Modern Inputs and Arrow CTA
   Widget _buildStaffForm() {
     return Form(
       key: _staffFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ClayTextField(
+          // User Id / Email
+          Text(
+            _isAdminMode ? 'Administrator ID' : 'User Id',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
             controller: _emailController,
-            label: 'Institutional Email Address',
-            hintText: 'e.g. admin@lavsms.edu or faculty@lavsms.edu',
-            prefixIcon: Icons.alternate_email_rounded,
             keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
+            decoration: InputDecoration(
+              hintText: _isAdminMode
+                  ? 'Enter Administrator ID or email'
+                  : 'Enter User Id or Institutional Email',
+              hintStyle:
+                  const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+              prefixIcon: const Icon(Icons.person_outline_rounded,
+                  size: 20, color: Color(0xFF64748B)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide:
+                    const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+              ),
+            ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Enter your registered email address';
+                return 'Enter your registered email address or user ID';
               }
               if (!value.contains('@') || !value.contains('.')) {
                 return 'Enter a valid institutional email';
@@ -633,20 +1152,54 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
           ),
           const SizedBox(height: 16),
 
-          ClayTextField(
+          // Password
+          const Text(
+            'Password',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
             controller: _passwordController,
-            label: 'Password',
-            hintText: 'Enter your secure password',
-            prefixIcon: Icons.lock_outline_rounded,
             obscureText: _obscurePassword,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                size: 20,
-                color: AppColors.textSecondary,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
+            decoration: InputDecoration(
+              hintText: 'Enter your password',
+              hintStyle:
+                  const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+              prefixIcon: const Icon(Icons.lock_outline_rounded,
+                  size: 20, color: Color(0xFF64748B)),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 18,
+                  color: const Color(0xFF64748B),
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide:
+                    const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+              ),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -654,9 +1207,9 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
               }
               return null;
             },
-            onSubmitted: (_) => _handleStaffLogin(),
+            onFieldSubmitted: (_) => _handleStaffLogin(),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Forgot Password Link
           Align(
@@ -671,29 +1224,78 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
               child: const Text(
                 'Forgot Password?',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.brandNavy,
+                  color: Color(0xFF2563EB),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 24),
-
-          ClayButton(
-            label: 'Sign In to Staff Portal',
-            icon: Icons.login_rounded,
-            isLoading: _isLoading,
-            isFullWidth: true,
-            onPressed: _handleStaffLogin,
-          ),
           const SizedBox(height: 20),
 
-          const Text(
-            'Authorized personnel only. Access privileges are strictly validated against Firestore user roles and audited for compliance.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 11, color: AppColors.textMuted, height: 1.4),
+          // Modern Gradient Primary CTA Button matching reference image
+          ElevatedButton(
+            onPressed: _isLoading ? null : _handleStaffLogin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _isAdminMode
+                              ? 'Sign In to Admin Console'
+                              : 'Sign In to Dashboard',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              onPressed: _toggleAdministratorMode,
+              icon: Icon(
+                _isAdminMode
+                    ? Icons.badge_outlined
+                    : Icons.admin_panel_settings_outlined,
+                size: 16,
+                color: const Color(0xFF2563EB),
+              ),
+              label: Text(
+                _isAdminMode ? 'Standard Staff Login' : 'Administrator Login',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -707,13 +1309,44 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ClayTextField(
+          const Text(
+            'Registered Mobile Number',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
             controller: _phoneController,
-            label: 'Registered Mobile Number',
-            hintText: '9876543210 (10 digits)',
-            prefixIcon: Icons.phone_android_rounded,
             keyboardType: TextInputType.phone,
             enabled: _verificationId == null,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
+            decoration: InputDecoration(
+              hintText: '9876543210 (10 digits)',
+              hintStyle:
+                  const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+              prefixIcon: const Icon(Icons.phone_android_rounded,
+                  size: 20, color: Color(0xFF64748B)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide:
+                    const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+              ),
+            ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Enter your registered phone number';
@@ -727,29 +1360,101 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
           ),
           const SizedBox(height: 18),
           if (_verificationId == null) ...[
-            ClayButton(
-              label: 'Send Verification Code (OTP)',
-              icon: Icons.send_rounded,
-              isLoading: _isLoading,
-              isFullWidth: true,
-              onPressed: _handleSendOtp,
+            ElevatedButton(
+              onPressed: _isLoading ? null : _handleSendOtp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Send Verification Code (OTP)',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
+                    ),
             ),
           ] else ...[
-            ClayTextField(
+            const Text(
+              'Enter 6-Digit OTP',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextFormField(
               controller: _otpController,
-              label: 'Enter 6-Digit OTP',
-              hintText: '• • • • • •',
-              prefixIcon: Icons.lock_clock_rounded,
               keyboardType: TextInputType.number,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 4,
+                color: Color(0xFF0F172A),
+              ),
+              decoration: InputDecoration(
+                hintText: '• • • • • •',
+                hintStyle: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF94A3B8),
+                  letterSpacing: 4,
+                ),
+                prefixIcon: const Icon(Icons.lock_clock_rounded,
+                    size: 20, color: Color(0xFF64748B)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                ),
+              ),
               validator: (value) {
                 if (value == null || value.trim().length != 6) {
                   return 'Enter the complete 6-digit code';
                 }
                 return null;
               },
-              onSubmitted: (_) => _handleVerifyOtp(),
+              onFieldSubmitted: (_) => _handleVerifyOtp(),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -775,31 +1480,104 @@ class _WebLoginScreenState extends ConsumerState<WebLoginScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: _resendCountdown == 0
-                          ? AppColors.brandNavy
-                          : AppColors.textMuted,
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF94A3B8),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            ClayButton(
-              label: 'Verify & Sign In',
-              icon: Icons.verified_rounded,
-              isLoading: _isLoading,
-              isFullWidth: true,
-              onPressed: _handleVerifyOtp,
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _handleVerifyOtp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Verify & Sign In',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.check_circle_outline, size: 18),
+                      ],
+                    ),
             ),
           ],
-          const SizedBox(height: 20),
-          const Text(
-            'Parent access requires an active guardianship link verified by the administration. OTP delivery utilizes Firebase Phone Authentication.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 11, color: AppColors.textMuted, height: 1.4),
-          ),
         ],
       ),
     );
   }
+}
+
+/// Custom Background Painter for Left Hero Section to render subtle organic glowing curve waves
+class _SchoolHeroBackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // Soft organic glow wave 1
+    final paint1 = Paint()
+      ..color = Colors.white.withValues(alpha: 0.05)
+      ..style = PaintingStyle.fill;
+
+    final path1 = Path()
+      ..moveTo(w * 0.4, 0)
+      ..cubicTo(w * 0.65, h * 0.15, w * 0.85, h * 0.45, w, h * 0.5)
+      ..lineTo(w, 0)
+      ..close();
+    canvas.drawPath(path1, paint1);
+
+    // Soft organic glow wave 2
+    final paint2 = Paint()
+      ..color = const Color(0xFF3B82F6).withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+
+    final path2 = Path()
+      ..moveTo(0, h * 0.6)
+      ..cubicTo(w * 0.35, h * 0.7, w * 0.7, h * 0.85, w * 0.9, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(path2, paint2);
+
+    // Subtle curved stroke outline
+    final strokePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.06)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final strokePath = Path()
+      ..moveTo(w * 0.3, 0)
+      ..cubicTo(w * 0.55, h * 0.25, w * 0.8, h * 0.45, w, h * 0.6);
+    canvas.drawPath(strokePath, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

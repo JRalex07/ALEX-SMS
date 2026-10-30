@@ -137,73 +137,21 @@ class FeeRepository {
     required String studentId,
     required String payerUserId,
     required int amountPaise,
+    required String paymentMethod,
     required String notes,
   }) async {
     try {
-      try {
-        final callable = _functions.httpsCallable('recordOfflinePayment');
-        await callable.call<Map<String, dynamic>>({
-          'invoiceId': invoiceId,
-          'studentId': studentId,
-          'payerUserId': payerUserId,
-          'amountPaise': amountPaise,
-          'notes': notes,
-        });
-        return;
-      } on FirebaseException catch (fe) {
-        if (fe.code == 'permission-denied' ||
-            fe.code == 'unauthenticated' ||
-            fe.code == 'invalid-argument' ||
-            fe.code == 'failed-precondition') {
-          rethrow;
-        }
-      } catch (_) {
-        // Fall back to direct Firestore transaction for mock unit tests
-      }
-
-      final paymentRef = _firestore.collection('payments').doc();
-      final invoiceRef =
-          _firestore.collection('student_invoices').doc(invoiceId);
-
-      await _firestore.runTransaction((transaction) async {
-        final invoiceDoc = await transaction.get(invoiceRef);
-        if (!invoiceDoc.exists) {
-          throw Exception('Invoice $invoiceId does not exist.');
-        }
-
-        final data = invoiceDoc.data()!;
-        final currentPaid = data['paidAmountPaise'] as int? ?? 0;
-        final currentOutstanding = data['outstandingBalancePaise'] as int? ?? 0;
-
-        final newPaid = currentPaid + amountPaise;
-        final newOutstanding = (currentOutstanding - amountPaise)
-            .clamp(0, double.infinity)
-            .toInt();
-        final newStatus = newOutstanding == 0 ? 'paid' : 'partially_paid';
-
-        transaction.set(paymentRef, {
-          'paymentId': paymentRef.id,
-          'invoiceId': invoiceId,
-          'studentId': studentId,
-          'payerUserId': payerUserId,
-          'amountPaise': amountPaise,
-          'gateway': 'offline',
-          'status': 'successful',
-          'notes': notes,
-          'capturedAt': FieldValue.serverTimestamp(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        transaction.update(invoiceRef, {
-          'paidAmountPaise': newPaid,
-          'outstandingBalancePaise': newOutstanding,
-          'status': newStatus,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+      final callable = _functions.httpsCallable('recordOfflinePayment');
+      await callable.call<Map<String, dynamic>>({
+        'invoiceId': invoiceId,
+        'studentId': studentId,
+        'payerUserId': payerUserId,
+        'amountPaise': amountPaise,
+        'paymentMethod': paymentMethod,
+        'notes': notes,
       });
     } catch (e, stack) {
-      debugPrint(
-          '[FeeRepository.recordOfflinePayment] Error recording payment for invoice $invoiceId: $e\n$stack');
+      debugPrint('[FeeRepository.recordOfflinePayment] Authoritative payment function failed for invoice $invoiceId: $e\n$stack');
       rethrow;
     }
   }
@@ -216,43 +164,21 @@ class FeeRepository {
     required DateTime dueDate,
   }) async {
     try {
-      try {
-        final callable = _functions.httpsCallable('createFeeInvoice');
-        final res = await callable.call<Map<String, dynamic>>({
-          'studentId': studentId,
-          'academicYearId': academicYearId,
-          'title': title,
-          'totalAmountPaise': totalAmountPaise,
-          'dueDate': dueDate.toIso8601String(),
-        });
-        final returnedId = res.data['invoiceId'] as String?;
-        if (returnedId != null) return returnedId;
-      } on FirebaseException catch (fe) {
-        if (fe.code == 'permission-denied' ||
-            fe.code == 'unauthenticated' ||
-            fe.code == 'invalid-argument') {
-          rethrow;
-        }
-      } catch (_) {}
-
-      final docRef = _firestore.collection('student_invoices').doc();
-      await docRef.set({
-        'invoiceId': docRef.id,
+      final callable = _functions.httpsCallable('createFeeInvoice');
+      final result = await callable.call<Map<String, dynamic>>({
         'studentId': studentId,
         'academicYearId': academicYearId,
         'title': title,
         'totalAmountPaise': totalAmountPaise,
-        'paidAmountPaise': 0,
-        'outstandingBalancePaise': totalAmountPaise,
-        'dueDate': Timestamp.fromDate(dueDate),
-        'status': 'unpaid',
-        'isArchived': false,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'dueDate': dueDate.toIso8601String(),
       });
-      return docRef.id;
+      final invoiceId = result.data['invoiceId'] as String?;
+      if (invoiceId == null || invoiceId.isEmpty) {
+        throw StateError('The invoice service did not return a persisted invoice ID.');
+      }
+      return invoiceId;
     } catch (e, stack) {
-      debugPrint('[FeeRepository.createInvoice] Error: $e\n$stack');
+      debugPrint('[FeeRepository.createInvoice] Authoritative invoice function failed: $e\n$stack');
       rethrow;
     }
   }
@@ -283,36 +209,16 @@ class FeeRepository {
     required String academicYearId,
   }) async {
     try {
-      try {
-        final callable = _functions.httpsCallable('createFeeStructure');
-        await callable.call<Map<String, dynamic>>({
-          'title': title,
-          'amountPaise': amountPaise,
-          'frequency': frequency,
-          'classId': classId,
-          'academicYearId': academicYearId,
-        });
-        return;
-      } on FirebaseException catch (fe) {
-        if (fe.code == 'permission-denied' ||
-            fe.code == 'unauthenticated' ||
-            fe.code == 'invalid-argument') {
-          rethrow;
-        }
-      } catch (_) {}
-
-      final docRef = _firestore.collection('fee_structures').doc();
-      await docRef.set({
-        'structureId': docRef.id,
+      final callable = _functions.httpsCallable('createFeeStructure');
+      await callable.call<Map<String, dynamic>>({
         'title': title,
         'amountPaise': amountPaise,
         'frequency': frequency,
         'classId': classId,
         'academicYearId': academicYearId,
-        'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e, stack) {
-      debugPrint('[FeeRepository.createFeeStructure] Error: $e\n$stack');
+      debugPrint('[FeeRepository.createFeeStructure] Authoritative fee-structure function failed: $e\n$stack');
       rethrow;
     }
   }
@@ -324,34 +230,17 @@ class FeeRepository {
     required String reason,
   }) async {
     try {
-      try {
-        final callable = _functions.httpsCallable('processRefund');
-        await callable.call<Map<String, dynamic>>({
-          'invoiceId': invoiceId,
-          'paymentId': paymentId,
-          'amountPaise': amountPaise,
-          'reason': reason,
-        });
-        return;
-      } on FirebaseException catch (fe) {
-        if (fe.code == 'permission-denied' ||
-            fe.code == 'unauthenticated' ||
-            fe.code == 'invalid-argument') {
-          rethrow;
-        }
-      } catch (_) {}
-
-      await _firestore.collection('refund_requests').add({
+      final callable = _functions.httpsCallable('processRefund');
+      await callable.call<Map<String, dynamic>>({
         'invoiceId': invoiceId,
         'paymentId': paymentId,
         'amountPaise': amountPaise,
         'reason': reason,
-        'status': 'pending_approval',
-        'requestedAt': FieldValue.serverTimestamp(),
       });
     } catch (e, stack) {
-      debugPrint('[FeeRepository.requestRefund] Error: $e\n$stack');
+      debugPrint('[FeeRepository.requestRefund] Authoritative refund function failed: $e\n$stack');
       rethrow;
     }
   }
+
 }

@@ -132,21 +132,43 @@ class AttendanceRecord {
   final String sessionId;
   final String status; // 'P', 'A', 'L', 'E'
   final String? remarks;
+  final DateTime? recordDate;
 
   const AttendanceRecord({
     required this.studentId,
     required this.sessionId,
     required this.status,
     this.remarks,
+    this.recordDate,
   });
+
+  DateTime get date => recordDate ?? _parseDateFromSession(sessionId);
+
+  static DateTime _parseDateFromSession(String session) {
+    final match = RegExp(r'\d{4}-\d{2}-\d{2}').firstMatch(session);
+    if (match != null) {
+      final parsed = DateTime.tryParse(match.group(0)!);
+      if (parsed != null) return parsed;
+    }
+    return DateTime.now();
+  }
 
   factory AttendanceRecord.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
+    final rawDate = data['date'] ?? data['recordedAt'] ?? data['timestamp'];
+    DateTime? parsedDate;
+    if (rawDate is Timestamp) {
+      parsedDate = rawDate.toDate();
+    } else if (rawDate is String) {
+      parsedDate = DateTime.tryParse(rawDate);
+    }
+
     return AttendanceRecord(
       studentId: doc.id,
-      sessionId: data['sessionId'] ?? '',
+      sessionId: data['sessionId'] ?? doc.reference.parent.parent?.id ?? '',
       status: data['status'] ?? 'P',
       remarks: data['remarks'],
+      recordDate: parsedDate,
     );
   }
 

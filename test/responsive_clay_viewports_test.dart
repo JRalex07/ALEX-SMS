@@ -41,10 +41,12 @@ void main() {
     ),
   ];
 
-  group('Requirement 9: Multi-Viewport Responsive Tests (All 8 Viewports)', () {
+  group('Requirement 9: Multi-Viewport Responsive Tests (All 10 Viewports)', () {
     const viewports = <String, Size>{
+      '320x568 (Narrow Phone)': Size(320, 568),
       '360x800 (Compact Phone)': Size(360, 800),
       '390x844 (Typical Phone)': Size(390, 844),
+      '430x932 (Large Phone)': Size(430, 932),
       '600x960 (Compact Tablet Boundary)': Size(600, 960),
       '768x1024 (Tablet)': Size(768, 1024),
       '1024x768 (Small Desktop / Landscape Tablet)': Size(1024, 768),
@@ -369,7 +371,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
+      final err = tester.takeException();
+      expect(err, isNull);
       expect(find.text('LAV ACADEMY'), findsWidgets);
       expect(find.text('Unified Institutional Workspace'), findsOneWidget);
       expect(find.text('Portal Sign In'), findsOneWidget);
@@ -399,6 +402,58 @@ void main() {
     });
 
     testWidgets(
+        'WebLoginScreen smoothly transitions Staff login to LEFT and Parent login to RIGHT',
+        (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: WebLoginScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initial state is Staff: Card is on the LEFT
+      final staffCardFinder = find.text('Portal Sign In');
+      expect(staffCardFinder, findsOneWidget);
+      final initialOffset = tester.getTopLeft(staffCardFinder);
+      expect(initialOffset.dx, lessThan(600),
+          reason: 'Staff login workspace should be on the LEFT');
+
+      // Click Parent / Guardian
+      await tester.tap(find.text('Parent / Guardian'));
+      await tester.pumpAndSettle();
+
+      // Card is now on the RIGHT
+      final parentOffset = tester.getTopLeft(staffCardFinder);
+      expect(parentOffset.dx, greaterThan(700),
+          reason: 'Parent login workspace should be on the RIGHT');
+
+      // Click Staff & Faculty again
+      await tester.tap(find.text('Staff & Faculty'));
+      await tester.pumpAndSettle();
+
+      // Card transitions back to the LEFT
+      final backToStaffOffset = tester.getTopLeft(staffCardFinder);
+      expect(backToStaffOffset.dx, lessThan(600),
+          reason: 'Staff login workspace should return to the LEFT');
+
+      // Click Corner Administrator Login button
+      expect(find.text('Administrator Login'), findsOneWidget);
+      await tester.tap(find.text('Administrator Login'));
+      await tester.pumpAndSettle();
+
+      // Header switches to Administrative Login and CTA button is Admin Console
+      expect(find.text('Administrative Login'), findsOneWidget);
+      expect(find.text('Sign In to Admin Console'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
         'NativeAppLoginScreen renders compact one-handed layout at 360x800 with zero overflow',
         (tester) async {
       tester.view.physicalSize = const Size(360, 800);
@@ -414,14 +469,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
+      final err = tester.takeException();
+      expect(err, isNull);
       expect(find.text('LAV ACADEMY'), findsOneWidget);
-      expect(find.text('Parent Portal'), findsOneWidget);
-      expect(find.text('Staff Portal'), findsOneWidget);
       expect(find.text('Parent / Guardian Sign In'), findsOneWidget);
+      expect(find.text('Administrator'), findsOneWidget);
 
-      // Switch to staff mode
-      await tester.tap(find.text('Staff Portal'));
+      // Switch to staff/admin mode via corner Administrator action
+      await tester.tap(find.text('Administrator'));
       await tester.pumpAndSettle();
 
       expect(find.text('Staff & Faculty Sign In'), findsOneWidget);

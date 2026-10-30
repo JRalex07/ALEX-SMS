@@ -1,0 +1,708 @@
+<USER_REQUEST>
+/goal /gravitas # LAV ACADEMY SMS â€” IMPLEMENT THE EXACT DASHBOARD OPTIONS FOR ALL SIX ROLES
+
+## OBJECTIVE
+
+Update the existing LAV Academy School Management System so that every authenticated role has its own complete, properly organized dashboard with the correct navigation menu, dashboard widgets, quick actions, tables, filters and workflows.
+
+**Do not create six dashboards that differ only by their colors or headings.** Every dashboard must be designed around the actual responsibilities of its role.
+
+Work directly in the existing codebase. Inspect the current routes, screens, services, models, Firestore collections, Cloud Functions and permission system before implementing the requirements below. Reuse existing functional modules and connect every option to its real workflow.
+
+The six roles are:
+
+1. `school_admin`
+2. `teacher`
+3. `accountant`
+4. `admissions_officer`
+5. `librarian`
+6. `parent_guardian`
+
+Students are student records and do not get an independent login under the current requirements.
+
+---
+
+# 1. SCHOOL ADMINISTRATOR DASHBOARD
+
+## A. Main navigation menu
+
+Create the following grouped navigation.
+
+### Overview
+- Dashboard
+- Notifications
+- My Profile
+
+### Student Management
+- All Students
+- Add Student
+- Student Details
+- Class and Section Transfers
+- Student Promotion
+- Student Status and Archives
+- Parent/Guardian Directory
+- Link or Unlink Guardians
+
+### Admissions
+- Admission Applications
+- Review Applications
+- Approved Admissions
+- Enrollment Register
+- Admission Reports
+
+### Academic Management
+- Academic Years
+- Classes
+- Sections
+- Subjects
+- Teacher-to-Class Assignments
+- Teacher-to-Subject Assignments
+- Timetable Management
+- School Calendar
+- Holidays
+
+### Staff and Access
+- Staff Directory
+- Add Staff Account
+- Staff Details
+- Assign Staff Roles
+- Teacher Workload and Assignments
+- Account Activation and Deactivation
+- Role and Permission Management
+
+### Attendance
+- Attendance Overview
+- Attendance Register
+- Class-wise Attendance
+- Attendance Exceptions
+- Attendance Corrections or Approvals, if the configured workflow requires them
+
+### Examinations and Results
+- Examination Setup
+- Examination Schedule
+- Subject and Class Assignment
+- Marks Overview
+- Draft Results
+- Result Review and Publication
+- Report Cards
+
+### Finance Overview
+- Fee Structures Overview
+- Student Fee Accounts
+- Invoices and Receivables
+- Payment Summary
+- Outstanding Dues
+- Financial Reports
+
+The accountant retains responsibility for ordinary financial operations. Administrative financial actions must follow explicit permissions and approval policies.
+
+### Library Overview
+- Book Catalog Overview
+- Circulation Summary
+- Issued and Overdue Books
+- Library Reports
+
+The librarian manages day-to-day circulation and catalog operations.
+
+### Communication
+- School Announcements
+- Notifications
+- Notices and Circulars
+- Communication History, if implemented
+
+### Reports and Settings
+- Student Reports
+- Academic Reports
+- Attendance Reports
+- Staff Reports
+- Admission Reports
+- Financial Summary Reports
+- School Profile and Settings
+- Audit Logs
+- Data Export, where authorized
+
+## B. Administrator dashboard content
+
+Display real, school-wide summary widgets where supported:
+
+- Total enrolled students
+- Active staff members
+- Active classes and sections
+- Current academic year
+- Today's attendance rate
+- Pending admission applications
+- Examination or result-publication status
+- Outstanding fee balance
+- Recent school announcements
+- Pending administrative tasks
+
+Below the summary section, display:
+
+1. **Today's School Activity:** attendance updates, admissions and authorized operational events.
+2. **Admission Queue:** applications requiring review, with View and Review actions.
+3. **Attendance Overview:** class-wise attendance based on real attendance records.
+4. **Academic Assignment Summary:** unassigned classes or subjects and assignment completion.
+5. **Fee Overview:** actual collected amount and outstanding amount for the selected reporting period.
+6. **Recent Announcements:** published announcements and their actual status.
+7. **Recent Audit Events:** only if the authenticated administrator has audit-log access.
+
+Quick actions:
+- Add Student
+- Register Staff
+- Create Class
+- Assign Teacher
+- Review Admission
+- Configure Academic Year
+- Create Announcement
+
+Every quick action must open the corresponding real form or workflow.
+
+---
+
+# 2. TEACHER DASHBOARD
+
+## A. Main navigation menu
+
+### Overview
+- My Dashboard
+- My Profile
+- Notifications
+
+### My Teaching
+- My Classes
+- My Sections
+- My Subjects
+- My Timetable
+- Class Rosters
+- Student Academic Progress
+
+### Attendance
+- Mark Attendance
+- Today's Attendance
+- Attendance History
+- Attendance Corrections, only if authorized
+
+### Homework and Assignments
+- Create Homework
+- All My Assignments
+- Edit or Manage Assignments
+- Student Submissions, if submission functionality exists
+- Assignment History
+
+### Learning Materials
+- Upload Study Material
+- My Study Materials
+- Organize Materials by Class and Subject
+- View or Manage Uploaded Materials
+
+### Examinations and Marks
+- Assigned Examinations
+- Exam Timetable
+- Enter Marks
+- Draft Marks
+- Edit Draft Marks
+- View Saved Marks
+- Student Results, limited to permitted records
+
+### Communication
+- Class Announcements, where permitted
+- School Notices
+- Notifications
+
+## B. Teacher dashboard content
+
+Display:
+
+- Number of assigned classes
+- Number of assigned subjects
+- Today's scheduled classes
+- Attendance still to be submitted
+- Upcoming examinations
+- Assignments requiring attention
+- Recently updated learning materials
+
+Main sections:
+
+1. **Today's Timetable:** actual assigned classes, subjects, periods and rooms where configured.
+2. **My Classes:** class and section list with Open Class actions.
+3. **Attendance Tasks:** classes requiring attendance submission.
+4. **Upcoming Examinations:** examinations linked to the teacher's assigned subjects.
+5. **Recent Assignments:** draft, published or closed status.
+6. **Study Materials:** recent uploads and upload actions.
+7. **Marks Entry Tasks:** assigned examinations with outstanding draft marks.
+
+Quick actions:
+- Mark Attendance
+- Create Homework
+- Upload Material
+- Enter Marks
+- Open My Class
+
+Rules:
+- A teacher can only access classes, sections and subjects assigned to them.
+- Class rosters must come from the actual student records.
+- Examination choices must come from configured examinations.
+- Marks must be saved as drafts unless the teacher has explicit publication permission.
+- Do not display other teachers' private assignments or unassigned students.
+
+---
+
+# 3. ACCOUNTANT DASHBOARD
+
+## A. Main navigation menu
+
+### Overview
+- Finance Dashboard
+- My Profile
+- Notifications
+
+### Fee Configuration
+- Fee Categories
+- Fee Structures
+- Class-wise Fee Plans
+- Fee Heads and Components
+- Due Dates and Payment Schedules
+- Discounts and Concessions
+- Scholarships, if supported
+
+### Student Accounts
+- Student Fee Accounts
+- Student Ledger
+- Fee Account Details
+- Outstanding Balances
+
+### Invoicing
+- Generate Invoice
+- All Invoices
+- Draft Invoices
+- Issued Invoices
+- Overdue Invoices
+- Invoice Details
+
+### Payments
+- Collect Permitted Payments
+- Payment Transactions
+- Payment Verification Status
+- Gateway Reconciliation
+- Cash or Offline Payments, if enabled
+- Failed and Pending Payments
+
+### Receipts and Adjustments
+- Generate or Reprint Receipt
+- Payment Allocation
+- Fee Adjustments
+- Credit Notes, if supported
+
+### Refunds
+- Refund Requests
+- Refund Processing
+- Refund History
+- Refund Approvals, only if explicitly authorized
+
+### Reports
+- Daily Collection Report
+- Date-wise Collection Report
+- Class-wise Fee Report
+- Outstanding Dues Report
+- Payment Failure Report
+- Refund Report
+- Financial Reconciliation
+- Exportable Financial Reports
+
+## B. Accountant dashboard content
+
+Display real figures for a selectable date range:
+
+- Amount collected
+- Outstanding receivables
+- Number of invoices issued
+- Number of overdue invoices
+- Verified payments
+- Pending payment verification
+- Failed transactions
+- Refunds awaiting action
+
+Main sections:
+
+1. **Collection Summary:** actual collected amounts by permitted payment category.
+2. **Outstanding Dues:** students or invoices with unpaid balances.
+3. **Recent Transactions:** timestamp, invoice/reference, amount, payment method and authoritative status.
+4. **Pending Payments:** payments awaiting verification, not counted as collected.
+5. **Overdue Invoices:** due dates and outstanding amounts.
+6. **Reconciliation Summary:** discrepancies between internal records and provider-confirmed transactions.
+7. **Refund Requests:** only the permitted actions for the accountant's approval level.
+
+Quick actions:
+- Create Invoice
+- View Student Ledger
+- Record Permitted Payment
+- Generate Receipt
+- Review Outstanding Dues
+- Reconcile Transactions
+
+Rules:
+- All calculations must use real invoice and transaction records.
+- Use integer paise or the project's established safe currency representation.
+- Do not represent pending payments as collected money.
+- Do not manually mark a gateway payment as successful without authoritative verification.
+- Refund approval must be separate from refund initiation wherever the school's policy requires separation of duties.
+
+---
+
+# 4. ADMISSIONS OFFICER DASHBOARD
+
+## A. Main navigation menu
+
+### Overview
+- Admissions Dashboard
+- My Profile
+- Notifications
+
+### Applications
+- All Applications
+- New Application
+- Draft Applications
+- Submitted Applications
+- Applications Under Review
+- Incomplete Applications
+- Application Details
+
+### Verification
+- Document Verification
+- Missing Documents
+- Verification History
+- Interview or Assessment Schedule, if implemented
+
+### Decisions
+- Pending Admission Decisions
+- Approve Application
+- Reject Application
+- Request Additional Documents
+- Waitlisted Applications, if the school uses a waitlist
+
+### Enrollment
+- Approved Applicants
+- Enroll Student
+- Enrollment Register
+- Admission Number Assignment
+- Class and Section Placement, within authorized permissions
+- Enrollment Status
+
+### Reports
+- Application Status Report
+- Admission Funnel
+- Class-wise Intake
+- Enrollment Report
+- Pending Application Report
+
+## B. Admissions dashboard content
+
+Display:
+
+- New applications
+- Applications awaiting review
+- Applications awaiting document verification
+- Incomplete applications
+- Approved applicants awaiting enrollment
+- Enrollments completed during the selected period
+- Rejected or withdrawn applications where applicable
+
+Main sections:
+
+1. **Application Review Queue:** prioritized applications with actual status and submission date.
+2. **Document Verification Queue:** outstanding document checks.
+3. **Admission Pipeline:** draft, submitted, under review, approved, rejected and enrolled counts.
+4. **Approved but Not Enrolled:** approved applicants requiring enrollment completion.
+5. **Recent Applications:** searchable and filterable table.
+6. **Intake Summary:** actual applications and completed enrollments by class or academic year.
+
+Quick actions:
+- Create Application
+- Review Application
+- Verify Documents
+- Record Admission Decision
+- Enroll Approved Applicant
+
+Rules:
+- Prevent duplicate admissions using the existing admission-number and student-ID validation.
+- Enrollment must use the authorized backend workflow.
+- Do not expose full financial ledgers or unrelated academic records to admissions staff.
+- Admissions staff must not assign staff roles or bypass school-wide academic configuration controls.
+
+---
+
+# 5. LIBRARIAN DASHBOARD
+
+## A. Main navigation menu
+
+### Overview
+- Library Dashboard
+- My Profile
+- Notifications
+
+### Catalog
+- All Books
+- Add Book
+- Edit Book Details
+- Book Details
+- Book Copies and Inventory
+- Categories
+- Authors and Publishers
+- Search Catalog
+
+### Circulation
+- Issue Book
+- Return Book
+- Renew Loan
+- Active Loans
+- Recently Returned Books
+- Loan History
+
+### Availability and Overdue
+- Available Books
+- Unavailable Books
+- Overdue Loans
+- Due Today
+- Lost or Damaged Books, if supported
+
+### Library Members
+- Search Student or Staff Member
+- Member Details
+- Borrowing History
+- Current Borrowings
+
+### Fines and Reports
+- Overdue Fine Summary, if enabled
+- Outstanding Fines, if implemented
+- Circulation Report
+- Inventory Report
+- Overdue Report
+- Exportable Library Reports
+
+## B. Librarian dashboard content
+
+Display:
+
+- Total catalog titles
+- Total available copies
+- Currently issued copies
+- Loans due today
+- Overdue loans
+- Recent issues and returns
+
+Main sections:
+
+1. **Quick Circulation:** issue, return and renew actions.
+2. **Overdue Books:** borrower, due date and actual overdue status.
+3. **Recent Circulation:** recent issue and return transactions.
+4. **Popular or Frequently Issued Books:** calculated from actual circulation history, when enough data exists.
+5. **Inventory Overview:** actual copy counts by availability status.
+6. **Catalog Search:** title, ISBN, author and category filters where fields exist.
+
+Quick actions:
+- Add Book
+- Issue Book
+- Return Book
+- Find Overdue Books
+- Search Catalog
+
+Rules:
+- Book availability must use actual copy and loan records.
+- Prevent issuing unavailable copies.
+- Prevent returning or renewing nonexistent or inactive loans.
+- Only show fines and lost/damaged workflows when those records and business rules exist.
+- Do not use sample loans or fabricated borrower records.
+
+---
+
+# 6. PARENT / GUARDIAN DASHBOARD
+
+## A. Main navigation menu
+
+### Overview
+- Parent Dashboard
+- Switch Child
+- My Profile
+- Notifications
+
+### Academics
+- Child's Timetable
+- Attendance
+- Homework
+- Assignments and Submissions, if enabled
+- Study Materials
+- Examination Schedule
+- Results
+- Report Cards
+- Academic Progress
+
+### Fees
+- Fee Summary
+- Invoices
+- Outstanding Dues
+- Verified Payment History
+- Receipts
+- Payment Instructions or Pay Now, only when a real supported payment workflow exists
+
+### Requests and Communication
+- Leave Requests
+- My Requests
+- Complaints and Support
+- School Announcements
+- Notices and Circulars
+
+### Additional Services
+- Transport, only if implemented
+- Library Borrowing Status, if parent-facing access is supported
+- Other configured parent services
+
+### Account
+- My Profile
+- Contact Details
+- Notifications
+- Sign Out
+
+## B. Parent dashboard content
+
+First display a clear child selector showing only children actually linked to the authenticated guardian.
+
+For the currently selected child, display:
+
+- Child name and permitted class/section details
+- Attendance summary from actual attendance records
+- Upcoming timetable items
+- Pending homework or assignments
+- Upcoming examination dates
+- Latest published results
+- Outstanding fee balance
+- Latest verified receipt or payment status
+- Recent school announcements
+
+Main sections:
+
+1. **Selected Child:** current linked-child identity and Switch Child action.
+2. **Today's Schedule:** actual timetable for that child.
+3. **Attendance:** actual attendance summary and permitted attendance history.
+4. **Homework and Materials:** currently relevant homework and authorized downloadable material.
+5. **Examinations and Results:** configured examination schedule and published results only.
+6. **Fees:** genuine outstanding balance and invoices for the selected child.
+7. **School Communication:** recent announcements and notices.
+8. **Requests:** status of the guardian's actual leave requests or support tickets.
+
+Quick actions:
+- Switch Child
+- View Attendance
+- View Homework
+- View Results
+- View Fees
+- Submit Leave Request, if enabled
+- Submit Complaint, if enabled
+
+Rules:
+- A guardian may only view children linked to their authenticated account.
+- Switching children must immediately invalidate the previous child's cached screen data, selections and asynchronous requests.
+- Hide unpublished marks and results from the parent portal.
+- Never expose other families' personal data.
+- Do not allow parents to edit official attendance, marks, fee structures or financial ledgers.
+
+---
+
+# 7. SHARED FEATURES AVAILABLE TO ALL ROLES
+
+Each role may have these features where appropriate:
+
+- My Profile
+- Change permitted account details
+- Notifications
+- Change password or the supported account-security workflow
+- Sign Out
+- Help or Support, if implemented
+
+The contents must vary according to permission. For example, a teacher may see teaching notifications while an accountant sees finance-related notifications.
+
+Provide a consistent notification center, but return only notices and records the authenticated role is entitled to view.
+
+# 8. EXACT DASHBOARD DESIGN REQUIREMENTS
+
+For every role, implement these components in the correct order:
+
+1. A role-specific welcome header showing the authenticated user's display name and assigned role.
+2. A compact set of useful, real-data metric widgets.
+3. Role-specific primary quick actions.
+4. A main operational table, queue or workflow relevant to that role.
+5. Upcoming tasks, recent activity or important deadlines.
+6. Secondary summaries and reports relevant to that role.
+7. Clear loading, empty, error and access-denied states.
+
+Do not show a dashboard made entirely of metric cards.
+
+For example:
+- Administrator: admissions queue, attendance overview and academic assignments.
+- Teacher: today's timetable, attendance tasks and marks-entry tasks.
+- Accountant: collection reconciliation and outstanding invoices.
+- Admissions officer: application-review and document-verification queues.
+- Librarian: circulation operations and overdue loans.
+- Parent: child selector, today's schedule and personal academic/fee summary.
+
+Every widget must have a clear purpose and a valid route to the relevant details.
+
+# 9. PLATFORM-SPECIFIC PRESENTATION
+
+Implement these same role-specific options through two different presentation families.
+
+### Web
+- Desktop: grouped sidebar navigation, professional top header, data tables, filters, breadcrumbs and contextual action menus.
+- Tablet browser: compact/collapsible navigation and responsive working tables.
+- Mobile browser: compact browser navigation, reflowed content and horizontally safe data presentation.
+
+### Native Android/iOS
+- Native-oriented app bars and back navigation.
+- Bottom navigation or a suitable mobile navigation pattern.
+- Touch-friendly lists, forms, dialogs and workflow screens.
+- Safe areas, keyboard handling and native-friendly selectors.
+- Native tablet layouts rather than blindly reusing the desktop web sidebar.
+
+Share business logic and repositories where appropriate; do not simply wrap the web layout in a native app or select the entire UI family based only on screen width.
+
+# 10. IMPLEMENTATION AND VERIFICATION RULES
+
+1. Inspect existing functionality before implementing each menu item.
+2. Connect every option to a real screen and legitimate backend operation.
+3. Remove dead links, meaningless buttons and fake sample values.
+4. Do not display a module as functional if its workflow does not exist.
+5. For unimplemented optional modules, either implement the required functionality or omit the option until it is genuinely available.
+6. Enforce authorization through the backend and Firestore rules, not only by hiding UI controls.
+7. Preserve the existing Firebase authentication, payment verification, data integrity and security architecture.
+8. Add role-specific routing tests and permission-denial tests.
+9. Run Flutter analysis, Flutter tests and relevant Functions tests using the commands that exist in the project.
+10. Run the application and visually inspect actual screens for all six roles, on web and native platforms when the environment supports them.
+11. Fix discovered bugs and repeat the relevant tests.
+12. Report the actual screens implemented, source files changed, test commands executed and remaining blockers.
+
+Do not stop after creating dashboards. Implement and verify the menus, routes, forms, table actions and underlying workflows.
+
+**Final acceptance criterion:** signing into each role must display that role's intended navigation and dashboard, every displayed option must lead to the correct authorized functionality, and no user must be able to access another role's restricted records by changing a route or request identifier.
+
+Start implementation immediately in the current repository.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-27T12:23:53+05:30.
+
+The user's current state is as follows:
+Active Document: d:\my_project_files\lav_sms\lib\features\parent\parent_dashboard_screen.dart (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 941
+Other open documents:
+- d:\my_project_files\lav_sms\lib\features\accountant\accountant_dashboard_screen.dart (LANGUAGE_UNSPECIFIED)
+- d:\my_project_files\lav_sms\lib\shared\widgets\responsive_scaffold.dart (LANGUAGE_UNSPECIFIED)
+- d:\my_project_files\lav_sms\test\responsive_clay_viewports_test.dart (LANGUAGE_UNSPECIFIED)
+- d:\my_project_files\lav_sms\lib\shared\widgets\erp_components.dart (LANGUAGE_UNSPECIFIED)
+- d:\my_project_files\lav_sms\lib\repositories\parent_services_repository.dart (LANGUAGE_UNSPECIFIED)
+
+The user has mentioned some items in the form @[ITEM]. Here is extra information about the items that were mentioned by the user, in the order that they appear:
+
+/goal is a [Slash Command]:
+The user has marked this task with /goal, indicating that this task is intended to run for a long time without user input, e.g. overnight. You should be extra thorough and only stop when you are confident the goal has been completely fulfilled. The system will force you to continue execution, prompting you to audit your work until completion. Once complete, include <!-- GOAL_COMPLETE --> in your response. If the user explicitly asked to stop or cancel this goal, include <!-- GOAL_CANCELLED --> in your response to cancel the goal.
+/gravitas is a [Slash Command]:
+<SKILL>The user requested you read and use the "gravitas" skill. The path to the skill file is:
+C:\Users\ASUS\.gemini\config\skills\gravitas\SKILL.md</SKILL>
+</ADDITIONAL_METADATA>

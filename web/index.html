@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -27,11 +28,60 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>lav_sms</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    @media screen {
+      #__lav_print_container__,
+      #__lav_print_frame__ {
+        display: none !important;
+        visibility: hidden !important;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 15mm 15mm 15mm 15mm;
+      }
+
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* Suppress Flutter web chrome, modal overlays, sidebars, and UI elements on window print */
+      body > :not(#__lav_print_container__):not(#__lav_print_frame__) {
+        display: none !important;
+        visibility: hidden !important;
+      }
+
+      #__lav_print_container__,
+      #__lav_print_frame__ {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        z-index: 9999999 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <!--
     You can customize the "flutter_bootstrap.js" script.
@@ -43,4 +93,5 @@
   -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
+
 </html>

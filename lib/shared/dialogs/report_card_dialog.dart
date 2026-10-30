@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/role_colors.dart';
 import '../../core/services/print_service.dart';
+import '../../core/services/print_document_generator.dart';
 import '../../models/examination_model.dart';
 import '../../models/student_model.dart';
 
@@ -14,102 +15,33 @@ class ReportCardDialog extends StatelessWidget {
     super.key,
     required this.student,
     required this.marks,
-    this.academicYear = '2026-2027',
-    this.examTitle = 'Term 1 Examination',
+    this.academicYear = 'Not supplied',
+    this.examTitle = 'Published Results',
   });
 
   static Future<void> show(
     BuildContext context, {
     required Student student,
     required List<Mark> marks,
-    String academicYear = '2026-2027',
-    String examTitle = 'Term 1 Examination',
+    String? academicYear,
+    String? examTitle,
   }) {
     return showDialog(
       context: context,
       builder: (ctx) => ReportCardDialog(
         student: student,
         marks: marks,
-        academicYear: academicYear,
-        examTitle: examTitle,
+        academicYear: academicYear ?? student.currentAcademicYearId,
+        examTitle: examTitle ?? 'Published Results',
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final effectiveMarks = marks.isNotEmpty
-        ? marks
-        : [
-            Mark(
-              markId: 'EXAM_TERM1_2026_${student.studentId}_SUB_MATH',
-              examId: 'EXAM_TERM1_2026',
-              studentId: student.studentId,
-              subjectId: 'Mathematics',
-              classId: student.currentClassId,
-              sectionId: student.currentSectionId,
-              academicYearId: 'AY_2026_2027',
-              continuousAssessment:
-                  const ContinuousAssessment(ca1: 18, ca2: 19),
-              examScore: 54,
-              totalScore: 91,
-              isApproved: true,
-              isPublished: true,
-              teacherComment:
-                  'Outstanding mathematical reasoning and problem-solving.',
-            ),
-            Mark(
-              markId: 'EXAM_TERM1_2026_${student.studentId}_SUB_SCI',
-              examId: 'EXAM_TERM1_2026',
-              studentId: student.studentId,
-              subjectId: 'Science & Lab',
-              classId: student.currentClassId,
-              sectionId: student.currentSectionId,
-              academicYearId: 'AY_2026_2027',
-              continuousAssessment:
-                  const ContinuousAssessment(ca1: 17, ca2: 18),
-              examScore: 51,
-              totalScore: 86,
-              isApproved: true,
-              isPublished: true,
-              teacherComment:
-                  'Strong grasp of scientific inquiry and laboratory practice.',
-            ),
-            Mark(
-              markId: 'EXAM_TERM1_2026_${student.studentId}_SUB_ENG',
-              examId: 'EXAM_TERM1_2026',
-              studentId: student.studentId,
-              subjectId: 'English Literature',
-              classId: student.currentClassId,
-              sectionId: student.currentSectionId,
-              academicYearId: 'AY_2026_2027',
-              continuousAssessment:
-                  const ContinuousAssessment(ca1: 19, ca2: 19),
-              examScore: 52,
-              totalScore: 90,
-              isApproved: true,
-              isPublished: true,
-              teacherComment:
-                  'Excellent comprehension and eloquent essay writing.',
-            ),
-            Mark(
-              markId: 'EXAM_TERM1_2026_${student.studentId}_SUB_SOC',
-              examId: 'EXAM_TERM1_2026',
-              studentId: student.studentId,
-              subjectId: 'Social Studies',
-              classId: student.currentClassId,
-              sectionId: student.currentSectionId,
-              academicYearId: 'AY_2026_2027',
-              continuousAssessment:
-                  const ContinuousAssessment(ca1: 16, ca2: 17),
-              examScore: 49,
-              totalScore: 82,
-              isApproved: true,
-              isPublished: true,
-              teacherComment:
-                  'Good analytical perspective on historical developments.',
-            ),
-          ];
+    final effectiveMarks = marks
+        .where((mark) => mark.studentId == student.studentId && mark.isPublished)
+        .toList();
 
     final grandTotal =
         effectiveMarks.fold<int>(0, (sum, m) => sum + m.totalScore);
@@ -165,7 +97,29 @@ class ReportCardDialog extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 8),
                         ),
-                        onPressed: () => PrintService.printDocument(),
+                        onPressed: effectiveMarks.isEmpty
+                            ? null
+                            : () {
+                                final exam = Examination(
+                                  examId: 'EXAM_${academicYear}_RESULTS',
+                                  title: examTitle,
+                                  academicYearId: academicYear,
+                                  term: examTitle,
+                                );
+                                final ref = 'REP-${exam.examId}-${student.studentId}';
+                                final html =
+                                    PrintDocumentGenerator.generateReportCardHtml(
+                                  student: student,
+                                  examination: exam,
+                                  marks: effectiveMarks,
+                                  referenceNumber: ref,
+                                );
+                                PrintService.printDocument(
+                                  htmlContent: html,
+                                  documentTitle:
+                                      'Report Card - ${student.fullName}',
+                                );
+                              },
                       ),
                       const SizedBox(width: 8),
                       IconButton(
@@ -211,22 +165,22 @@ class ReportCardDialog extends StatelessWidget {
                             const Text(
                               'LAV INTERNATIONAL ACADEMY',
                               style: TextStyle(
-                                fontSize: 22,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1.2,
                                 color: Color(0xFF0F172A),
                               ),
                             ),
-                            const Text(
-                              'CBSE Affiliated Institutional Campus • School Code: SCH_001',
-                              style: TextStyle(
+                            Text(
+                              'ANNUAL ACADEMIC PROGRESS REPORT — $academicYear',
+                              style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'ANNUAL ACADEMIC PROGRESS REPORT — $academicYear',
+                              'ACADEMIC PROGRESS REPORT — $academicYear',
                               style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
@@ -285,10 +239,10 @@ class ReportCardDialog extends StatelessWidget {
                                   _infoRow('Academic Session', academicYear),
                                   const SizedBox(height: 6),
                                   _infoRow(
-                                      'Attendance Rate', '94.3% (Verified)'),
+                                      'Attendance Rate', 'Not supplied'),
                                   const SizedBox(height: 6),
                                   _infoRow('Result Status',
-                                      'PROMOTED WITH DISTINCTION'),
+                                      effectiveMarks.isEmpty ? 'No published results' : 'Published'),
                                 ],
                               ),
                             ),
@@ -297,6 +251,17 @@ class ReportCardDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
 
+                      if (effectiveMarks.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.borderLight),
+                          ),
+                          child: const Text('No published marks are available for this student. This preview does not generate placeholder scores.'),
+                        )
+                      else
                       // Marks Table
                       Table(
                         border: TableBorder.all(
@@ -375,7 +340,16 @@ class ReportCardDialog extends StatelessWidget {
                                     fontWeight: FontWeight.w700, fontSize: 12)),
                             const SizedBox(height: 4),
                             Text(
-                              '${student.fullName} has demonstrated exemplary discipline, consistent classroom engagement, and exceptional mastery of core subjects. Commended for academic excellence.',
+                              effectiveMarks
+                                      .map((mark) => mark.teacherComment?.trim() ?? '')
+                                      .where((comment) => comment.isNotEmpty)
+                                      .join(' · ')
+                                  .isNotEmpty
+                                  ? effectiveMarks
+                                      .map((mark) => mark.teacherComment?.trim() ?? '')
+                                      .where((comment) => comment.isNotEmpty)
+                                      .join(' · ')
+                                  : 'No teacher remarks have been recorded.',
                               style: const TextStyle(
                                   fontSize: 12,
                                   fontStyle: FontStyle.italic,

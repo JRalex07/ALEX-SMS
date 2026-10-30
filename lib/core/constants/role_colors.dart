@@ -63,15 +63,25 @@ class AppColors {
   static const Color infoSky = Color(0xFF0284C7);
   static const Color infoBg = Color(0xFFF0F9FF);
 
+  // Extended Ergonomic & Status Aliases
+  static const Color tealSuccess = Color(0xFF0D9488);
+  static const Color infoBlue = Color(0xFF0284C7);
+  static const Color surfaceMuted = Color(0xFFF1F5F9);
+  static const Color slateGray = Color(0xFF64748B);
+
   // Role Accents (6 Authorized Institutional Roles)
   static const Color adminIndigo = Color(0xFF4F46E5); // Royal indigo
   static const Color adminViolet = Color(0xFF7C3AED); // Electric violet
   static const Color teacherTeal = Color(0xFF0D9488); // Teal
   static const Color teacherGreen = Color(0xFF059669); // Ocean green
+  static const Color teacherEmerald = Color(0xFF0D9488); // Teal / Emerald alias
   static const Color accountantEmerald = Color(0xFF059669); // Emerald
   static const Color accountantJade = Color(0xFF10B981); // Jade
+  static const Color accountantAmber =
+      Color(0xFF059669); // Emerald / Amber alias
   static const Color admissionsAmber = Color(0xFFD97706); // Warm amber
   static const Color admissionsOrange = Color(0xFFEA580C); // Orange
+  static const Color admissionsTeal = Color(0xFFD97706); // Amber / Teal alias
   static const Color librarianViolet = Color(0xFF7C3AED); // Rich violet
   static const Color librarianPurple = Color(0xFF8B5CF6); // Purple
   static const Color parentBlue = Color(0xFF2563EB); // Bright blue

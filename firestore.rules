@@ -7,9 +7,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Token Claim Active Check (Tier 3: Low-Latency Streaming / Catalog Paths)
-    function isActive() {
-      return isAuthenticated() && request.auth.token.isActive == true;
+    // Helper to check if user document exists in Firestore
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     // Cached User Document Helper for Live Verification
@@ -17,13 +17,26 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Authoritative Live Status Check (Tier 2: Gating Sensitive Direct Writes & Sensitive Record Reads)
+    // Active Check: Token claim if present, otherwise live document status
+    function isActive() {
+      return isAuthenticated() && (
+        (request.auth.token.get('isActive', false) == true) ||
+        (userDocExists() && (getLiveUserData().get('status', '') == 'active' || getLiveUserData().get('isActive', false) == true))
+      );
+    }
+
+    // Authoritative Live Status Check (Gating Sensitive Direct Writes & Sensitive Record Reads)
     function isLiveActive() {
-      return isActive() && (getLiveUserData().status == 'active' || (!('status' in getLiveUserData()) && getLiveUserData().isActive == true));
+      return isAuthenticated() && userDocExists() && (
+        getLiveUserData().get('status', '') == 'active' || 
+        getLiveUserData().get('isActive', false) == true
+      );
     }
 
     function getUserRole() {
-      return request.auth.token.role;
+      return ('role' in request.auth.token && request.auth.token.role != null) 
+        ? request.auth.token.role 
+        : (userDocExists() ? getLiveUserData().get('role', '') : '');
     }
 
     function isSchoolAdmin() {
@@ -32,11 +45,11 @@ service cloud.firestore {
 
     // Live Privileged Role Checks: Enforces live role from users/{uid} to prevent role-demotion token bypass
     function isLiveSchoolAdmin() {
-      return isLiveActive() && getUserRole() == 'school_admin' && getLiveUserData().role == 'school_admin';
+      return isLiveActive() && getLiveUserData().get('role', '') == 'school_admin';
     }
 
     function isLiveAccountant() {
-      return isLiveActive() && (getLiveUserData().role == 'accountant' || getLiveUserData().role == 'school_admin');
+      return isLiveActive() && (getLiveUserData().get('role', '') == 'accountant' || getLiveUserData().get('role', '') == 'school_admin');
     }
 
     function isTeacher() {
@@ -44,19 +57,19 @@ service cloud.firestore {
     }
 
     function isLiveTeacher() {
-      return isLiveActive() && getUserRole() == 'teacher' && getLiveUserData().role == 'teacher';
+      return isLiveActive() && getLiveUserData().get('role', '') == 'teacher';
     }
 
     function isLiveAdmissions() {
-      return isLiveActive() && (getLiveUserData().role == 'admissions_officer' || getLiveUserData().role == 'school_admin');
+      return isLiveActive() && (getLiveUserData().get('role', '') == 'admissions_officer' || getLiveUserData().get('role', '') == 'school_admin');
     }
 
     function isLiveLibrarian() {
-      return isLiveActive() && (getLiveUserData().role == 'librarian' || getLiveUserData().role == 'school_admin');
+      return isLiveActive() && (getLiveUserData().get('role', '') == 'librarian' || getLiveUserData().get('role', '') == 'school_admin');
     }
 
     function isLiveParent() {
-      return isLiveActive() && getUserRole() == 'parent_guardian' && getLiveUserData().role == 'parent_guardian';
+      return isLiveActive() && getLiveUserData().get('role', '') == 'parent_guardian';
     }
 
     // Note: 'student' is not an active authentication role in v2.4.0 (parent-managed student access model).
@@ -70,7 +83,13 @@ service cloud.firestore {
     // --- 2. Users Collection (Profile Privacy Enforced) ---
     match /users/{uid} {
       allow read: if isLiveActive() && (request.auth.uid == uid || isLiveSchoolAdmin());
-      allow write: if false; // Cloud Functions only
+      allow write: if false; // Cloud Functions only (no client self-elevation, role reassignment, or arbitrary email/phone tampering)
+    }
+
+    // Email change requests (Cloud Functions Admin SDK only, School Admin read-only)
+    match /email_change_requests/{requestId} {
+      allow read: if isLiveSchoolAdmin();
+      allow write: if false;
     }
 
     // Public Colleague Directory (Safe Projection; claim-only path with max 1h delay on suspension)
@@ -243,6 +262,15 @@ service cloud.firestore {
       }
     }
 
+    // Collection group read access for attendance records (supports parent ward history and staff audit queries)
+    match /{path=**}/records/{studentId} {
+      allow read: if isLiveActive() && (
+        isLiveSchoolAdmin()
+        || isLiveTeacher()
+        || (isLiveParent() && request.auth.uid in get(/databases/$(database)/documents/students/$(studentId)).data.guardianUserIds)
+      );
+    }
+
     // --- 6. Examinations Module ---
     match /examinations/{examId} {
       allow read: if isActive() && (isSchoolAdmin() || isTeacher() || resource.data.isPublished == true);
@@ -359,15 +387,16 @@ service cloud.firestore {
       // Live account status and live guardian ReBAC enforced (0s revocation delay on unlink).
       allow read: if isLiveActive() && (
         isLiveAccountant()
+        || isLiveSchoolAdmin()
         || (isLiveParent() && request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.guardianUserIds)
       );
-      allow write: if false; // Cloud Functions exclusively
+      allow write: if false; // Cloud Functions exclusively (prevents financial tampering)
     }
 
     match /invoices/{invoiceId} {
-      // Support for seeded invoices collection with identical ReBAC and accountant access
       allow read: if isLiveActive() && (
         isLiveAccountant()
+        || isLiveSchoolAdmin()
         || (isLiveParent() && request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.guardianUserIds)
       );
       allow write: if false;
@@ -376,14 +405,16 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if isLiveActive() && (
         isLiveAccountant()
+        || isLiveSchoolAdmin()
         || (isLiveParent() && resource.data.payerUserId == request.auth.uid)
       );
-      allow write: if false; // Verified webhooks via Cloud Functions exclusively
+      allow write: if false; // Verified webhooks via Cloud Functions exclusively (never client direct write)
     }
 
     match /payment_allocations/{allocationId} {
       allow read: if isLiveActive() && (
         isLiveAccountant()
+        || isLiveSchoolAdmin()
         || (isLiveParent() && request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.guardianUserIds)
       );
       allow write: if false;
@@ -392,6 +423,7 @@ service cloud.firestore {
     match /refunds/{refundId} {
       allow read: if isLiveActive() && (
         isLiveAccountant()
+        || isLiveSchoolAdmin()
         || (isLiveParent() && request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.guardianUserIds)
       );
       allow write: if false;
@@ -407,6 +439,7 @@ service cloud.firestore {
     match /library_loans/{loanId} {
       allow read: if isLiveActive() && (
         isLiveLibrarian()
+        || isLiveSchoolAdmin()
         || (isLiveParent() && request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.guardianUserIds)
       );
       allow write: if false; // Cloud Functions exclusively
@@ -446,9 +479,6 @@ service cloud.firestore {
       allow delete: if isLiveTeacher()
                     && resource.data.authorUid == request.auth.uid
                     && resource.data.isPublished == false;
-
-      // Note: Publication, unpublication, and privileged administrative corrections of published notices
-      // must proceed exclusively through trusted Cloud Functions ('publishNotice', 'unpublishNotice', 'adminCorrectNotice')
     }
 
     // --- 12. Study Materials (Class & Section Isolation & Metadata Immutability) ---
@@ -535,6 +565,11 @@ service cloud.firestore {
       allow write: if isLiveSchoolAdmin();
     }
 
+    match /school_calendar/{eventId} {
+      allow read: if isActive();
+      allow write: if isLiveSchoolAdmin();
+    }
+
     // --- 16. Complaints & Grievances ---
     match /complaints/{complaintId} {
       allow read: if isLiveActive() && (
@@ -568,8 +603,35 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /parent_chats/{chatId} {
+      allow read: if isLiveActive() && (
+        isLiveSchoolAdmin()
+        || resource.data.parentUid == request.auth.uid
+        || resource.data.staffUid == request.auth.uid
+      );
+      allow create: if isLiveActive() && (
+        request.resource.data.parentUid == request.auth.uid
+        || isLiveSchoolAdmin()
+      );
+      allow update: if isLiveActive() && (
+        isLiveSchoolAdmin()
+        || resource.data.parentUid == request.auth.uid
+        || resource.data.staffUid == request.auth.uid
+      );
+      allow delete: if false;
+    }
+
     // --- 18. Online Tests & Quizzes ---
     match /quizzes/{quizId} {
+      allow read: if isLiveActive() && (
+        isLiveSchoolAdmin()
+        || (isLiveTeacher() && resource.data.classId in request.auth.token.assignedClasses)
+        || (isLiveParent() && request.auth.token.wardClasses != null && resource.data.classId in request.auth.token.wardClasses)
+      );
+      allow write: if isLiveSchoolAdmin() || (isLiveTeacher() && request.resource.data.classId in request.auth.token.assignedClasses);
+    }
+
+    match /online_quizzes/{quizId} {
       allow read: if isLiveActive() && (
         isLiveSchoolAdmin()
         || (isLiveTeacher() && resource.data.classId in request.auth.token.assignedClasses)
@@ -594,9 +656,83 @@ service cloud.firestore {
       allow write: if isLiveSchoolAdmin();
     }
 
-    // --- 20. Admissions Enquiries Pipeline ---
+    match /transport_assignments/{assignmentId} {
+      allow read: if isLiveActive() && (
+        isLiveSchoolAdmin()
+        || (isLiveParent() && request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.guardianUserIds)
+      );
+      allow write: if isLiveSchoolAdmin();
+    }
+
+    match /timetables/{timetableId} {
+      allow read: if isActive();
+      allow write: if isLiveSchoolAdmin();
+    }
+
+    match /online_classes/{classId} {
+      allow read: if isActive();
+      allow write: if isLiveSchoolAdmin() || (isLiveTeacher() && request.resource.data.teacherUid == request.auth.uid);
+    }
+
+    // --- 20. Admissions & Enquiries Pipeline (Least-Privilege & State Validation Enforced) ---
+    function isValidAdmissionStateTransition(currentStatus, newStatus) {
+      return (currentStatus == 'draft' && newStatus in ['draft', 'submitted'])
+          || (currentStatus == 'submitted' && newStatus in ['under_review', 'documents_verified', 'rejected', 'waitlisted'])
+          || (currentStatus == 'under_review' && newStatus in ['documents_verified', 'approved', 'rejected', 'waitlisted'])
+          || (currentStatus == 'documents_verified' && newStatus in ['approved', 'rejected', 'waitlisted'])
+          || (currentStatus == 'waitlisted' && newStatus in ['under_review', 'approved', 'rejected'])
+          || (currentStatus == 'approved' && newStatus in ['enrolled', 'rejected'])
+          || (currentStatus == newStatus);
+    }
+
+    match /admissions_enquiries/{applicationId} {
+      allow read: if isLiveSchoolAdmin()
+                  || isLiveAdmissions()
+                  || (isLiveParent() && (
+                        resource.data.existingGuardianUserId == request.auth.uid
+                        || resource.data.applicantUid == request.auth.uid
+                        || resource.data.guardianEmail == request.auth.token.email
+                        || resource.data.fatherEmail == request.auth.token.email
+                        || resource.data.motherEmail == request.auth.token.email
+                     ));
+
+      allow create: if (isLiveSchoolAdmin() || isLiveAdmissions())
+                    || (isLiveParent()
+                        && request.resource.data.status in ['draft', 'submitted']
+                        && (request.resource.data.existingGuardianUserId == request.auth.uid || request.resource.data.applicantUid == request.auth.uid)
+                        && request.resource.data.status != 'approved'
+                        && request.resource.data.status != 'enrolled'
+                        && (!('enrolledStudentId' in request.resource.data) || request.resource.data.enrolledStudentId == null)
+                        && (!('reviewerNotes' in request.resource.data) || request.resource.data.reviewerNotes == null));
+
+      allow update: if (isLiveSchoolAdmin() || isLiveAdmissions())
+                        && isValidAdmissionStateTransition(resource.data.status, request.resource.data.status)
+                    || (isLiveParent()
+                        && resource.data.status == 'draft'
+                        && request.resource.data.status in ['draft', 'submitted']
+                        && (resource.data.existingGuardianUserId == request.auth.uid || resource.data.applicantUid == request.auth.uid)
+                        && request.resource.data.existingGuardianUserId == resource.data.existingGuardianUserId
+                        // Prevent parents from altering internal reviewer notes, decisions, or enrolled IDs
+                        && (!('reviewerNotes' in request.resource.data) || request.resource.data.reviewerNotes == resource.data.reviewerNotes)
+                        && (!('decisionDate' in request.resource.data) || request.resource.data.decisionDate == resource.data.decisionDate)
+                        && (!('decidedByUid' in request.resource.data) || request.resource.data.decidedByUid == resource.data.decidedByUid)
+                        && (!('enrolledStudentId' in request.resource.data) || request.resource.data.enrolledStudentId == resource.data.enrolledStudentId)
+                    );
+
+      allow delete: if isLiveSchoolAdmin()
+                    || (isLiveParent()
+                        && resource.data.status == 'draft'
+                        && (resource.data.existingGuardianUserId == request.auth.uid || resource.data.applicantUid == request.auth.uid));
+    }
+
     match /enquiries/{enquiryId} {
-      allow read, create, update: if isLiveSchoolAdmin() || isLiveAdmissions();
+      allow read: if isLiveSchoolAdmin() 
+                  || isLiveAdmissions()
+                  || (isLiveParent() && (resource.data.parentUid == request.auth.uid || resource.data.existingGuardianUserId == request.auth.uid));
+      allow create: if isLiveSchoolAdmin() 
+                    || isLiveAdmissions() 
+                    || (isLiveParent() && (request.resource.data.parentUid == request.auth.uid || request.resource.data.existingGuardianUserId == request.auth.uid));
+      allow update: if isLiveSchoolAdmin() || isLiveAdmissions();
       allow delete: if isLiveSchoolAdmin();
     }
   }

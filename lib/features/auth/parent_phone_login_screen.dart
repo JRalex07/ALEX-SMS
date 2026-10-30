@@ -145,7 +145,7 @@ class _ParentPhoneLoginScreenState
       backgroundColor: AppColors.surfaceBackground,
       appBar: AppBar(
         title: Text(
-          isCompact ? 'Parent Portal' : 'LAV Academy — Parent Portal',
+          isCompact ? 'Parent Portal' : 'Academic  — Parent Portal',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
         ),
         automaticallyImplyLeading: false,

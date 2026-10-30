@@ -51,7 +51,7 @@ class _CreateNoticeDialogState extends State<CreateNoticeDialog> {
         content: _contentController.text.trim(),
         targetAudience: _targetAudience,
         priority: _priority,
-        authorUid: 'admin_uid',
+        authorUid: '',
         authorName: 'School Administration',
         isPublished: true,
         createdAt: DateTime.now(),

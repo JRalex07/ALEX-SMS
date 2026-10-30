@@ -53,51 +53,85 @@ class ClayCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (hasHeader) ...[
-            Row(
-              children: [
-                if (icon != null) ...[
-                  ClayContainer(
-                    depth: ClayDepth.low,
-                    borderRadius: ClayTheme.radiusSm,
-                    surfaceColor: (iconColor ?? AppColors.brandNavy).withValues(alpha: 0.1),
-                    borderColor: (iconColor ?? AppColors.brandNavy).withValues(alpha: 0.25),
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(
-                      icon,
-                      size: 20,
-                      color: iconColor ?? AppColors.brandNavy,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (title != null)
-                        Text(
-                          title!,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      if (subtitle != null)
-                        Text(
-                          subtitle!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+            LayoutBuilder(
+              builder: (context, headerConstraints) {
+                final isNarrow = headerConstraints.maxWidth < 360.0;
+                final titleCol = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (title != null)
+                      Text(
+                        title!,
+                        style: AppleTypography.title3(color: AppColors.textPrimary),
+                      ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: AppleTypography.subheadline(color: AppColors.textSecondary),
+                      ),
                     ],
-                  ),
-                ),
-                if (headerAction != null) headerAction!,
-              ],
+                  ],
+                );
+
+                if (isNarrow && headerAction != null) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          if (icon != null) ...[
+                            ClayContainer(
+                              depth: ClayDepth.low,
+                              borderRadius: ClayTheme.radiusSm,
+                              surfaceColor: (iconColor ?? AppColors.brandNavy).withValues(alpha: 0.1),
+                              borderColor: (iconColor ?? AppColors.brandNavy).withValues(alpha: 0.25),
+                              padding: const EdgeInsets.all(8),
+                              child: Icon(
+                                icon,
+                                size: 20,
+                                color: iconColor ?? AppColors.brandNavy,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(child: titleCol),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: headerAction!,
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    if (icon != null) ...[
+                      ClayContainer(
+                        depth: ClayDepth.low,
+                        borderRadius: ClayTheme.radiusSm,
+                        surfaceColor: (iconColor ?? AppColors.brandNavy).withValues(alpha: 0.1),
+                        borderColor: (iconColor ?? AppColors.brandNavy).withValues(alpha: 0.25),
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          icon,
+                          size: 20,
+                          color: iconColor ?? AppColors.brandNavy,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(child: titleCol),
+                    if (headerAction != null) ...[
+                      const SizedBox(width: 12),
+                      headerAction!,
+                    ],
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 16),
           ],

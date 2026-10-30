@@ -141,15 +141,19 @@ class _ClayButtonState extends State<ClayButton> {
                     const SizedBox(width: 8),
                   ],
                   Flexible(
-                    child: Text(
-                      widget.label,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.1,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.label,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 14 * AppleTypography.trackingHeadline,
+                        ),
                       ),
                     ),
                   ),
@@ -168,6 +172,16 @@ class _ClayButtonState extends State<ClayButton> {
 
     if (!isEnabled) return content;
 
+    final canAnimate = AppleMotion.canAnimate(context);
+    final scale = (_isPressed && canAnimate) ? AppleMotion.pressScale : 1.0;
+
+    final animatedButton = AnimatedScale(
+      scale: scale,
+      duration: _isPressed ? AppleMotion.pressDuration : AppleMotion.releaseDuration,
+      curve: _isPressed ? AppleMotion.curvePress : AppleMotion.curveRelease,
+      child: content,
+    );
+
     return MouseRegion(
       cursor: kIsWeb ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: (_) => setState(() => _isHovered = true),
@@ -178,7 +192,7 @@ class _ClayButtonState extends State<ClayButton> {
         onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onPressed,
         behavior: HitTestBehavior.opaque,
-        child: content,
+        child: animatedButton,
       ),
     );
   }

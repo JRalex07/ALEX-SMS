@@ -152,42 +152,15 @@ class StudentRepository {
     required String reason,
   }) async {
     try {
-      try {
-        final callable = _functions.httpsCallable('transferStudentCohort');
-        await callable.call<Map<String, dynamic>>({
-          'studentId': studentId,
-          'targetClassId': newClassId,
-          'targetSectionId': newSectionId,
-          'transferReason': reason,
-        });
-        return;
-      } on FirebaseException catch (fe) {
-        if (fe.code == 'permission-denied' ||
-            fe.code == 'unauthenticated' ||
-            fe.code == 'invalid-argument') {
-          rethrow;
-        }
-      } catch (_) {}
-
-      await _firestore.collection('students').doc(studentId).update({
-        'currentClassId': newClassId,
-        'currentSectionId': newSectionId,
-        'transferReason': reason,
-        'transferredAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Also record in administrative audit log
-      await _firestore.collection('audit_logs').add({
-        'action': 'STUDENT_TRANSFER',
+      final callable = _functions.httpsCallable('transferStudentCohort');
+      await callable.call<Map<String, dynamic>>({
         'studentId': studentId,
-        'newClassId': newClassId,
-        'newSectionId': newSectionId,
-        'reason': reason,
-        'timestamp': FieldValue.serverTimestamp(),
+        'targetClassId': newClassId,
+        'targetSectionId': newSectionId,
+        'transferReason': reason,
       });
     } catch (e, stack) {
-      debugPrint('[StudentRepository.transferStudentClass] Error: $e\n$stack');
+      debugPrint('[StudentRepository.transferStudentClass] Authoritative cohort-transfer function failed: $e\n$stack');
       rethrow;
     }
   }

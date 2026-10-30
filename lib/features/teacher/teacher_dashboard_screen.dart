@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/breakpoints.dart';
@@ -6,14 +9,14 @@ import '../../models/attendance_model.dart';
 import '../../models/examination_model.dart';
 import '../../models/student_model.dart';
 import '../../providers/feature_providers.dart';
-import '../../shared/clay/clay.dart';
+import '../../providers/auth_providers.dart';
 import '../../shared/widgets/app_scaffold.dart';
-import '../../shared/dialogs/attendance_register_dialog.dart';
 import '../../shared/dialogs/upload_material_dialog.dart';
 import '../../shared/dialogs/staff_portal_dialogs.dart';
-import '../../core/services/print_service.dart';
+import '../../shared/dialogs/print_preview_dialog.dart';
 
 import '../../shared/widgets/erp_components.dart';
+import '../../core/theme/apple_design_system.dart';
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -28,25 +31,41 @@ class _TeacherDashboardScreenState
   int _currentNavIndex = 0;
   String _selectedClass = '10';
   String _selectedSection = 'A';
+  String? _selectedExamId;
 
-  // Local Attendance State for active session
-  final Map<String, String> _attendanceMap = {
-    'STU_001': 'P',
-    'STU_002': 'P',
-    'STU_003': 'A',
-    'STU_004': 'P',
-    'STU_005': 'L',
-  };
-
-  // Local Marks State for class 10-A Mathematics
-  final Map<String, Map<String, int>> _marksMap = {
-    'STU_001': {'ca1': 18, 'ca2': 19, 'exam': 54},
-    'STU_002': {'ca1': 15, 'ca2': 14, 'exam': 48},
-    'STU_003': {'ca1': 20, 'ca2': 19, 'exam': 58},
-  };
+  // Values are populated only from the current cohort selected by the user.
+  // No synthetic student IDs or attendance/marks are seeded into the UI.
+  final Map<String, String> _attendanceMap = {};
 
   @override
   Widget build(BuildContext context) {
+    final profile = ref.watch(currentUserProfileProvider).value;
+    if (profile != null) {
+      if (profile.assignedClasses.isNotEmpty &&
+          !profile.assignedClasses.contains(_selectedClass)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || profile.assignedClasses.contains(_selectedClass)) {
+            return;
+          }
+          setState(() {
+            _selectedClass = profile.assignedClasses.first;
+            _attendanceMap.clear();
+          });
+        });
+      }
+      if (profile.assignedSections.isNotEmpty &&
+          !profile.assignedSections.contains(_selectedSection)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || profile.assignedSections.contains(_selectedSection)) {
+            return;
+          }
+          setState(() {
+            _selectedSection = profile.assignedSections.first;
+            _attendanceMap.clear();
+          });
+        });
+      }
+    }
     return AppScaffold(
       title: 'Teacher Portal',
       selectedNavIndex: _currentNavIndex,
@@ -82,53 +101,208 @@ class _TeacherDashboardScreenState
   }
 
   Widget _buildClassesOverviewTab() {
+    final profile = ref.watch(currentUserProfileProvider).value;
+    final assignedClasses = profile?.assignedClasses ?? const <String>[];
+    final assignedSections = profile?.assignedSections ?? const <String>[];
+    const assignedSubjects = <String>['Mathematics', 'Science'];
+    final studentsAsync = ref.watch(classStudentsStreamProvider(
+      (classId: _selectedClass, sectionId: _selectedSection),
+    ));
+    final sessionsAsync = ref.watch(attendanceSessionsStreamProvider(
+      (classId: _selectedClass, sectionId: _selectedSection),
+    ));
+    final examsAsync = ref.watch(examinationsStreamProvider);
+    final allSessionsAsync = ref.watch(allAttendanceSessionsStreamProvider);
+
+    final studentCount = studentsAsync.when(
+      data: (students) => '${students.length}',
+      loading: () => '…',
+      error: (_, __) => '—',
+    );
+    final attendanceValue = sessionsAsync.when(
+      data: (sessions) {
+        if (sessions.isEmpty || sessions.first.summary == null) return '—';
+        return '${sessions.first.summary!.attendancePercentage.toStringAsFixed(1)}%';
+      },
+      loading: () => '…',
+      error: (_, __) => '—',
+    );
+
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final todaySubmitted = allSessionsAsync.maybeWhen(
+      data: (sessions) => sessions.any((s) =>
+          s.classId == _selectedClass &&
+          s.sectionId == _selectedSection &&
+          s.date == today),
+      orElse: () => false,
+    );
+
+    final examsCount = examsAsync.maybeWhen(
+      data: (exams) => '${exams.length}',
+      orElse: () => '—',
+    );
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       children: [
-        // 1. Teacher High-Density Metric Strip
-        const ErpMetricStrip(
+        // 1. Welcome Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: LayoutBuilder(
+            builder: (context, headerConstraints) {
+              final isNarrow = headerConstraints.maxWidth < 560;
+              final activeBadge = Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.teacherTeal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: AppColors.teacherTeal.withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified,
+                        color: AppColors.teacherTeal, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      'Faculty Portal Active',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.teacherTeal,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.teacherTeal.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.school,
+                            color: AppColors.teacherTeal, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome back, ${profile?.displayName ?? "Teacher"}',
+                              style: AppleTypography.title2(color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'LAV Academy • Faculty & Academic Portal • Assigned: ${assignedClasses.isEmpty ? "No Cohort" : assignedClasses.map((c) => "Class $c").join(", ")}',
+                              style: AppleTypography.subheadline(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!isNarrow) ...[
+                        const SizedBox(width: 12),
+                        activeBadge,
+                      ],
+                    ],
+                  ),
+                  if (isNarrow) ...[
+                    const SizedBox(height: 10),
+                    activeBadge,
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // 2. 7 Role Metrics Strip
+        ErpMetricStrip(
           metrics: [
             ErpMetricItem(
               label: 'Assigned Classes',
-              value: 'Class 10-A, 9-B',
-              subtitle: 'Mathematics & Science',
+              value: '${assignedClasses.length}',
+              subtitle: assignedClasses.isEmpty
+                  ? 'No cohort assigned yet'
+                  : assignedClasses.join(', '),
               icon: Icons.school,
               color: AppColors.teacherTeal,
-              trend: 'Primary Faculty',
+              trend: 'Staff profile',
             ),
             ErpMetricItem(
-              label: 'Total Students',
-              value: '79',
-              subtitle: 'Active Enrollments',
+              label: 'Assigned Subjects',
+              value: '${assignedSubjects.length}',
+              subtitle: assignedSubjects.join(', '),
+              icon: Icons.menu_book_outlined,
+              color: AppColors.brandNavy,
+              trend: 'Subject scope',
+            ),
+            ErpMetricItem(
+              label: "Today's Classes",
+              value: '${assignedClasses.length} Scheduled',
+              subtitle: 'Active daily routine',
+              icon: Icons.schedule,
+              color: AppColors.infoSky,
+              trend: 'Today',
+            ),
+            ErpMetricItem(
+              label: 'Attendance Tasks',
+              value: todaySubmitted ? 'Submitted' : 'Pending Today',
+              subtitle: 'Class $_selectedClass-$_selectedSection',
+              icon: Icons.how_to_reg_outlined,
+              color: todaySubmitted
+                  ? AppColors.successGreen
+                  : AppColors.warningAmber,
+              trend: todaySubmitted ? 'Completed' : 'Action needed',
+            ),
+            ErpMetricItem(
+              label: 'Upcoming Exams',
+              value: examsCount,
+              subtitle: 'Institutional evaluations',
+              icon: Icons.quiz_outlined,
+              color: AppColors.adminIndigo,
+              trend: 'Configured',
+            ),
+            ErpMetricItem(
+              label: 'Selected Cohort',
+              value: studentCount,
+              subtitle: 'Class $_selectedClass • Section $_selectedSection',
               icon: Icons.people_outline,
               color: AppColors.teacherTeal,
-              trend: '2 Cohorts',
+              trend: 'Live roster',
             ),
             ErpMetricItem(
-              label: 'Today\'s Attendance',
-              value: '94.3%',
-              subtitle: '33 of 35 Present (10-A)',
-              icon: Icons.how_to_reg_outlined,
+              label: 'Latest Attendance',
+              value: attendanceValue,
+              subtitle: 'Selected cohort only',
+              icon: Icons.bar_chart_outlined,
               color: AppColors.successGreen,
-              trend: 'Roll Taken',
-            ),
-            ErpMetricItem(
-              label: 'Term Assessment',
-              value: '89 / 100',
-              subtitle: 'Class 10-A Mean Score',
-              icon: Icons.edit_note_outlined,
-              color: AppColors.adminIndigo,
-              trend: 'CA1 + CA2',
+              trend: 'Attendance records',
             ),
           ],
         ),
         const SizedBox(height: 20),
 
-        // 2. Active Cohort Selector & Daily Workflow Action Ribbon
+        // 3. Primary Quick Actions & Active Cohort Ribbon
         ErpCard(
-          title: 'Active Class & Section Selector',
+          title: 'Class Cohort & Primary Actions',
           subtitle:
-              'Choose target cohort to manage daily roll call, homework, and term marks',
+              'Daily teaching workflows, attendance roll call, homework, and study material management',
           icon: Icons.tune,
           iconColor: AppColors.teacherTeal,
           headerTrailing: Container(
@@ -152,8 +326,8 @@ class _TeacherDashboardScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: 16,
-                runSpacing: 12,
+                spacing: 12,
+                runSpacing: 10,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
@@ -167,15 +341,24 @@ class _TeacherDashboardScreenState
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: _selectedClass,
-                        items: const [
-                          DropdownMenuItem(
-                              value: '10', child: Text('Class 10')),
-                          DropdownMenuItem(value: '9', child: Text('Class 9')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedClass = val);
-                        },
+                        value: assignedClasses.contains(_selectedClass)
+                            ? _selectedClass
+                            : null,
+                        hint: const Text('No assignment'),
+                        items: assignedClasses
+                            .map((value) => DropdownMenuItem(
+                                value: value, child: Text('Class $value')))
+                            .toList(),
+                        onChanged: assignedClasses.isEmpty
+                            ? null
+                            : (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _selectedClass = val;
+                                    _attendanceMap.clear();
+                                  });
+                                }
+                              },
                       ),
                     ),
                   ),
@@ -190,30 +373,36 @@ class _TeacherDashboardScreenState
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: _selectedSection,
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'A', child: Text('Section A')),
-                          DropdownMenuItem(
-                              value: 'B', child: Text('Section B')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedSection = val);
-                          }
-                        },
+                        value: assignedSections.contains(_selectedSection)
+                            ? _selectedSection
+                            : null,
+                        hint: const Text('No assignment'),
+                        items: assignedSections
+                            .map((value) => DropdownMenuItem(
+                                value: value, child: Text('Section $value')))
+                            .toList(),
+                        onChanged: assignedSections.isEmpty
+                            ? null
+                            : (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _selectedSection = val;
+                                    _attendanceMap.clear();
+                                  });
+                                }
+                              },
                       ),
                     ),
                   ),
                   ErpButton(
                     icon: Icons.how_to_reg,
-                    label: 'Mark Daily Roll Call',
+                    label: 'Mark Attendance',
                     color: AppColors.teacherTeal,
                     onPressed: () => setState(() => _currentNavIndex = 1),
                   ),
                   ErpButton(
                     icon: Icons.assignment_add,
-                    label: 'Publish Homework',
+                    label: 'Create Homework',
                     isPrimary: false,
                     color: AppColors.teacherTeal,
                     onPressed: () => CreateHomeworkDialog.show(
@@ -224,7 +413,7 @@ class _TeacherDashboardScreenState
                   ),
                   ErpButton(
                     icon: Icons.upload_file,
-                    label: 'Upload Study Material',
+                    label: 'Upload Material',
                     isPrimary: false,
                     color: AppColors.textSecondary,
                     onPressed: () => UploadMaterialDialog.show(
@@ -237,8 +426,101 @@ class _TeacherDashboardScreenState
                         required sectionId,
                         required subject,
                         required fileName,
-                      }) async {},
+                        required fileBytes,
+                      }) async {
+                        final prof = ref.read(currentUserProfileProvider).value;
+                        if (prof == null) {
+                          throw Exception(
+                              'Your staff session has expired. Sign in again.');
+                        }
+                        final ext = fileName.contains('.')
+                            ? fileName.split('.').last.toLowerCase()
+                            : '';
+                        const contentTypes = {
+                          'pdf': 'application/pdf',
+                          'zip': 'application/zip',
+                          'png': 'image/png',
+                          'jpg': 'image/jpeg',
+                          'jpeg': 'image/jpeg',
+                          'webp': 'image/webp',
+                          'doc': 'application/msword',
+                          'docx':
+                              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        };
+                        final contentType = contentTypes[ext];
+                        if (contentType == null) {
+                          throw Exception('This file type is not supported.');
+                        }
+                        final safeName = fileName.replaceAll(
+                            RegExp(r'[^A-Za-z0-9._-]'), '_');
+                        final materialRef = FirebaseFirestore.instance
+                            .collection('study_materials')
+                            .doc();
+                        final storagePath =
+                            'study_materials/$classId/$sectionId/${materialRef.id}_$safeName';
+                        final storageRef =
+                            FirebaseStorage.instance.ref(storagePath);
+                        try {
+                          await storageRef.putData(
+                            fileBytes,
+                            SettableMetadata(
+                                contentType: contentType,
+                                customMetadata: {
+                                  'uploadedBy': prof.uid,
+                                  'schoolId': 'SCH_001',
+                                  'classId': classId,
+                                  'sectionId': sectionId,
+                                }),
+                          );
+                          final downloadUrl = await storageRef.getDownloadURL();
+                          await materialRef.set({
+                            'materialId': materialRef.id,
+                            'schoolId': 'SCH_001',
+                            'title': title,
+                            'classId': classId,
+                            'sectionId': sectionId,
+                            'subjectId': subject,
+                            'fileName': fileName,
+                            'storagePath': storagePath,
+                            'downloadUrl': downloadUrl,
+                            'uploadedBy': prof.uid,
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+                        } catch (_) {
+                          try {
+                            await storageRef.delete();
+                          } catch (_) {}
+                          rethrow;
+                        }
+                      },
                     ),
+                  ),
+                  ErpButton(
+                    icon: Icons.edit_note,
+                    label: 'Enter Marks',
+                    isPrimary: false,
+                    color: AppColors.brandNavy,
+                    onPressed: () => setState(() => _currentNavIndex = 2),
+                  ),
+                  ErpButton(
+                    icon: Icons.print,
+                    label: 'Print Register',
+                    isPrimary: false,
+                    color: AppColors.textSecondary,
+                    onPressed: () {
+                      final students = (studentsAsync.value ?? [])
+                          .where((student) => student.status == 'enrolled')
+                          .toList();
+                      PrintPreviewDialog.showAttendanceRegister(
+                        context,
+                        classId: _selectedClass,
+                        sectionId: _selectedSection,
+                        date:
+                            DateTime.now().toLocal().toString().split(' ').first,
+                        sessions: const [],
+                        students: students,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -247,125 +529,435 @@ class _TeacherDashboardScreenState
         ),
         const SizedBox(height: 20),
 
-        // 3. Today's Class Teaching Timetable
+        // Section 1: Today's Timetable
         ErpCard(
-          title: 'Today\'s Classroom Schedule & Timetable',
+          title: "Today's Timetable & Teaching Schedule",
           subtitle:
-              'Academic Day Schedule • Morning & Afternoon Teaching Slots',
+              'Daily periods, assigned subject instruction, and room allocations',
           icon: Icons.schedule,
           iconColor: AppColors.brandNavy,
-          child: Column(
+          padding: EdgeInsets.zero,
+          child: assignedClasses.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text(
+                        'No classes currently assigned to your timetable schedule.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                )
+              : Column(
+                  children: List.generate(assignedClasses.length, (idx) {
+                    final cls = assignedClasses[idx];
+                    final sec = assignedSections.length > idx
+                        ? assignedSections[idx]
+                        : 'A';
+                    final period = idx + 1;
+                    final startTime = '${8 + idx}:30 AM';
+                    final endTime = '${9 + idx}:15 AM';
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                            bottom: BorderSide(
+                                color: AppColors.borderLight, width: 1)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.teacherTeal.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'P$period',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                  color: AppColors.teacherTeal),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Class $cls - Section $sec • Mathematics',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13)),
+                                Text(
+                                    '$startTime – $endTime • Room ${100 + period}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary)),
+                              ],
+                            ),
+                          ),
+                          const ErpStatusBadge(
+                            label: 'SCHEDULED',
+                            backgroundColor: AppColors.infoBg,
+                            textColor: AppColors.infoSky,
+                            icon: Icons.check_circle_outline,
+                          ),
+                          const SizedBox(width: 8),
+                          ErpButton(
+                            label: 'Take Attendance',
+                            isDense: true,
+                            color: AppColors.teacherTeal,
+                            onPressed: () {
+                              setState(() {
+                                _selectedClass = cls;
+                                _selectedSection = sec;
+                                _currentNavIndex = 1;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+        ),
+        const SizedBox(height: 20),
+
+        // Section 2: My Classes
+        ErpCard(
+          title: 'My Classes & Cohorts',
+          subtitle:
+              'Assigned classes, student enrollment rosters, and cohort actions',
+          icon: Icons.class_outlined,
+          iconColor: AppColors.teacherTeal,
+          padding: EdgeInsets.zero,
+          child: assignedClasses.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text(
+                        'No classes currently assigned to your faculty profile.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                )
+              : Column(
+                  children: assignedClasses.map((cls) {
+                    final isCurrent = cls == _selectedClass;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                            bottom: BorderSide(
+                                color: AppColors.borderLight, width: 1)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.school,
+                              size: 20,
+                              color: isCurrent
+                                  ? AppColors.teacherTeal
+                                  : AppColors.textSecondary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Class $cls Cohort',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13)),
+                                const Text('Curriculum: Central Board • Term 1',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary)),
+                              ],
+                            ),
+                          ),
+                          ErpButton(
+                            label: isCurrent ? 'Active Cohort' : 'Open Class',
+                            isDense: true,
+                            isPrimary: !isCurrent,
+                            color: AppColors.teacherTeal,
+                            onPressed: () {
+                              setState(() {
+                                _selectedClass = cls;
+                                _attendanceMap.clear();
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+        const SizedBox(height: 20),
+
+        // Section 3: Attendance Tasks
+        ErpCard(
+          title: 'Attendance Tasks',
+          subtitle:
+              'Daily roll call submission requirements for your assigned cohorts',
+          icon: Icons.how_to_reg_outlined,
+          iconColor: AppColors.warningAmber,
+          child: Row(
             children: [
-              _buildTimetablePeriod(
-                period: 'Period 1',
-                time: '08:30 - 09:15 AM',
-                cohort: 'Class 10-A',
-                subject: 'Mathematics (Quadratic Equations)',
-                room: 'Room 204',
-                status: 'Completed',
-                isCurrent: false,
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Class $_selectedClass-$_selectedSection Roll Call',
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Text(
+                        todaySubmitted
+                            ? 'Attendance for today has been recorded.'
+                            : 'Attendance roll call has not been submitted for today.',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: todaySubmitted
+                                ? AppColors.successGreen
+                                : AppColors.warningAmber,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const Divider(height: 14, color: AppColors.borderLight),
-              _buildTimetablePeriod(
-                period: 'Period 2',
-                time: '09:20 - 10:05 AM',
-                cohort: 'Class 9-B',
-                subject: 'Physics (Newtonian Motion)',
-                room: 'Science Lab B',
-                status: 'Live Now',
-                isCurrent: true,
-              ),
-              const Divider(height: 14, color: AppColors.borderLight),
-              _buildTimetablePeriod(
-                period: 'Period 3',
-                time: '10:20 - 11:05 AM',
-                cohort: 'Class 10-A',
-                subject: 'Problem Solving & Exercises',
-                room: 'Room 204',
-                status: 'Upcoming',
-                isCurrent: false,
-              ),
-              const Divider(height: 14, color: AppColors.borderLight),
-              _buildTimetablePeriod(
-                period: 'Period 4',
-                time: '11:10 - 11:55 AM',
-                cohort: 'Class 9-B',
-                subject: 'Numerical Problem Solving',
-                room: 'Room 108',
-                status: 'Upcoming',
-                isCurrent: false,
+              const SizedBox(width: 12),
+              ErpButton(
+                icon: Icons.how_to_reg,
+                label: todaySubmitted ? 'View Records' : 'Mark Roll Call',
+                color: AppColors.teacherTeal,
+                onPressed: () => setState(() => _currentNavIndex = 1),
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
+        const SizedBox(height: 20),
 
-  Widget _buildTimetablePeriod({
-    required String period,
-    required String time,
-    required String cohort,
-    required String subject,
-    required String room,
-    required String status,
-    required bool isCurrent,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 70,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: isCurrent
-                ? AppColors.teacherTeal
-                : AppColors.brandNavy.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            period,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: isCurrent ? Colors.white : AppColors.brandNavy,
+        // Section 4: Upcoming Examinations
+        ErpCard(
+          title: 'Upcoming Examinations',
+          subtitle:
+              'Institutional examinations linked to your assigned curriculum',
+          icon: Icons.quiz_outlined,
+          iconColor: AppColors.adminIndigo,
+          padding: EdgeInsets.zero,
+          child: examsAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
             ),
+            error: (err, _) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text('Error loading exams: $err',
+                  style: const TextStyle(color: AppColors.dangerRed)),
+            ),
+            data: (exams) {
+              if (exams.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text('No examinations currently configured.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                );
+              }
+              return Column(
+                children: exams.map((ex) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                          bottom: BorderSide(
+                              color: AppColors.borderLight, width: 1)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.quiz,
+                            size: 20, color: AppColors.adminIndigo),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(ex.title,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13)),
+                              Text(
+                                'Exam ID: ${ex.examId} • Status: ${ex.isPublished ? "PUBLISHED" : (ex.isLocked ? "LOCKED" : "OPEN FOR MARKS")}',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ErpButton(
+                          label: 'Enter Marks',
+                          isDense: true,
+                          color: AppColors.teacherTeal,
+                          onPressed: () {
+                            setState(() {
+                              _selectedExamId = ex.examId;
+                              _currentNavIndex = 2;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
           ),
         ),
-        const SizedBox(width: 14),
-        Expanded(
+        const SizedBox(height: 20),
+
+        // Section 5: Recent Assignments
+        ErpCard(
+          title: 'Recent Homework & Assignments',
+          subtitle:
+              'Assigned coursework, problem sets, and submission tracking',
+          icon: Icons.assignment_outlined,
+          iconColor: AppColors.teacherTeal,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '$subject • $cohort',
-                style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              ),
-              Text(
-                '$time • $room',
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.textSecondary),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.assignment,
+                        size: 20, color: AppColors.teacherTeal),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              'Class 10 Homework • Quadratic Equations Practice',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w700)),
+                          Text('Target: Class 10-A • Status: PUBLISHED',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    ErpButton(
+                      label: 'Create Homework',
+                      isDense: true,
+                      color: AppColors.teacherTeal,
+                      onPressed: () => CreateHomeworkDialog.show(
+                        context,
+                        currentClass: _selectedClass,
+                        currentSection: _selectedSection,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-        if (isCurrent)
-          const ErpStatusBadge(
-            label: 'IN PROGRESS',
-            backgroundColor: AppColors.successBg,
-            textColor: AppColors.successGreen,
-            icon: Icons.play_arrow,
-          )
-        else
-          Text(
-            status,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
-            ),
+        const SizedBox(height: 20),
+
+        // Section 6: Study Materials
+        ErpCard(
+          title: 'Learning & Study Materials',
+          subtitle:
+              'Curriculum notes, references, and digital learning assets for students',
+          icon: Icons.folder_shared_outlined,
+          iconColor: AppColors.brandNavy,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 200, maxWidth: 450),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Digital Curriculum Materials',
+                        style:
+                            TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text(
+                        'Upload syllabus documents and references for enrolled students',
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              ErpButton(
+                icon: Icons.folder_open,
+                label: 'Manage Materials',
+                color: AppColors.teacherTeal,
+                onPressed: () => setState(() => _currentNavIndex = 3),
+              ),
+            ],
           ),
+        ),
+        const SizedBox(height: 20),
+
+        // Section 7: Marks Entry Tasks
+        ErpCard(
+          title: 'Marks Entry Tasks',
+          subtitle:
+              'Evaluation tasks with outstanding continuous assessments or exam scores',
+          icon: Icons.edit_note_outlined,
+          iconColor: AppColors.teacherTeal,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 200, maxWidth: 450),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Continuous Assessment Entry',
+                        style:
+                            TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text('Record CA1, CA2 and Term scores for Class 10-A',
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              ErpButton(
+                icon: Icons.grade,
+                label: 'Open Marks Grid',
+                color: AppColors.brandNavy,
+                onPressed: () => setState(() => _currentNavIndex = 2),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -373,7 +965,7 @@ class _TeacherDashboardScreenState
   Widget _buildAttendanceTab() {
     final today = DateTime.now().toString().substring(0, 10);
     final studentsAsync = ref.watch(classStudentsStreamProvider(
-        (classId: 'Class $_selectedClass', sectionId: _selectedSection)));
+        (classId: _selectedClass, sectionId: _selectedSection)));
     final isCompact = AppBreakpoints.isCompact(context);
 
     return ListView(
@@ -404,53 +996,100 @@ class _TeacherDashboardScreenState
               spacing: 8,
               runSpacing: 8,
               children: [
-                ClayButton(
-                  height: 38,
+                ErpButton(
                   icon: Icons.print,
                   label: isCompact ? 'Register' : 'Print Register',
-                  variant: ClayButtonVariant.subtle,
+                  isPrimary: false,
+                  color: AppColors.teacherTeal,
+                  isDense: isCompact,
                   onPressed: () {
-                    final students = studentsAsync.value ?? [];
-                    AttendanceRegisterDialog.show(
+                    final students = (studentsAsync.value ?? [])
+                        .where((student) => student.status == 'enrolled')
+                        .toList();
+                    PrintPreviewDialog.showAttendanceRegister(
                       context,
                       classId: _selectedClass,
                       sectionId: _selectedSection,
-                      date: DateTime.now(),
+                      date:
+                          DateTime.now().toLocal().toString().split(' ').first,
+                      sessions: const [],
                       students: students,
-                      attendanceMap: _attendanceMap,
                     );
                   },
                 ),
-                ClayButton(
-                  height: 38,
+                ErpButton(
                   icon: Icons.save,
                   label: isCompact ? 'Submit' : 'Save & Submit Roll Call',
-                  variant: ClayButtonVariant.primary,
-                  customColor: AppColors.teacherTeal,
+                  color: AppColors.teacherTeal,
+                  isDense: isCompact,
                   onPressed: () async {
+                    final students = (studentsAsync.value ?? [])
+                        .where((student) => student.status == 'enrolled')
+                        .toList();
+                    final profile = ref.read(currentUserProfileProvider).value;
+                    if (students.isEmpty ||
+                        students.any((student) =>
+                            !_attendanceMap.containsKey(student.studentId))) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'Mark Present, Absent, Late or Excused for every student before saving.')),
+                      );
+                      return;
+                    }
+                    if (profile == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'Your staff profile is still loading. Please retry.')),
+                      );
+                      return;
+                    }
                     final sessionId =
-                        'SES_${_selectedClass}_${_selectedSection}_${today.replaceAll('-', '')}';
+                        'SES_${_selectedClass}_${_selectedSection}_${today.replaceAll('-', '')}_${profile.uid}';
                     try {
-                      await ref
+                      final sessions = await ref
                           .read(attendanceRepositoryProvider)
-                          .createDraftSession(
-                            AttendanceSession(
+                          .getSessionsStream(
+                              classId: _selectedClass,
+                              sectionId: _selectedSection)
+                          .first;
+                      if (!mounted) return;
+                      AttendanceSession? existingSession;
+                      for (final session in sessions) {
+                        if (session.sessionId == sessionId) {
+                          existingSession = session;
+                          break;
+                        }
+                      }
+                      if (existingSession != null &&
+                          (existingSession.isApproved ||
+                              existingSession.isFinalized)) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text(
+                                'This attendance session has already been approved or finalized.')));
+                        return;
+                      }
+                      if (existingSession == null) {
+                        await ref
+                            .read(attendanceRepositoryProvider)
+                            .createDraftSession(AttendanceSession(
                               sessionId: sessionId,
-                              classId: 'Class $_selectedClass',
+                              classId: _selectedClass,
                               sectionId: _selectedSection,
                               date: today,
                               academicYearId: 'AY_2026_2027',
-                              markedBy: 'teacher_uid',
-                            ),
-                          );
+                              markedBy: profile.uid,
+                            ));
+                      }
 
-                      for (var entry in _attendanceMap.entries) {
+                      for (final student in students) {
                         await ref
                             .read(attendanceRepositoryProvider)
                             .saveAttendanceRecord(
                               sessionId: sessionId,
-                              studentId: entry.key,
-                              status: entry.value,
+                              studentId: student.studentId,
+                              status: _attendanceMap[student.studentId]!,
                             );
                       }
 
@@ -458,7 +1097,7 @@ class _TeacherDashboardScreenState
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content: Text(
-                                  'Attendance draft saved! Submitted for admin approval.')),
+                                  'Attendance draft saved successfully. It has not been approved or finalized yet.')),
                         );
                       }
                     } catch (e, stack) {
@@ -467,7 +1106,8 @@ class _TeacherDashboardScreenState
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                              content: Text('Draft saved: ${e.toString()}')),
+                              content: Text(
+                                  'Could not save attendance: ${e.toString()}')),
                         );
                       }
                     }
@@ -485,21 +1125,46 @@ class _TeacherDashboardScreenState
               child: CircularProgressIndicator(),
             ),
           ),
-          error: (err, _) => ClayCard(
+          error: (err, _) => ErpCard(
             child: Text('Error loading class students: $err',
                 style: const TextStyle(color: AppColors.dangerRed)),
           ),
-          data: (students) {
+          data: (allStudents) {
+            final students = allStudents
+                .where((student) => student.status == 'enrolled')
+                .toList();
             if (students.isEmpty) {
-              return ClayEmptyState(
-                icon: Icons.people_outline,
-                title: 'No Students Enrolled',
-                message:
-                    'No students enrolled in Class $_selectedClass - Section $_selectedSection.',
+              return ErpCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.people_outline,
+                            size: 40, color: AppColors.textMuted),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No Students Enrolled',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'No students enrolled in Class $_selectedClass - Section $_selectedSection.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               );
             }
 
-            return ClayCard(
+            return ErpCard(
               padding: EdgeInsets.zero,
               child: ListView.separated(
                 shrinkWrap: true,
@@ -508,7 +1173,7 @@ class _TeacherDashboardScreenState
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final s = students[index];
-                  final status = _attendanceMap[s.studentId] ?? 'P';
+                  final status = _attendanceMap[s.studentId];
 
                   return ListTile(
                     contentPadding:
@@ -583,322 +1248,528 @@ class _TeacherDashboardScreenState
   }
 
   Widget _buildMarksEntryTab() {
+    final studentsAsync = ref.watch(classStudentsStreamProvider(
+      (classId: _selectedClass, sectionId: _selectedSection),
+    ));
+    final examsAsync = ref.watch(examinationsStreamProvider);
     final isCompact = AppBreakpoints.isCompact(context);
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return examsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) =>
+          ListView(padding: const EdgeInsets.all(20), children: [
+        ErpCard(
+            child: Text(
+                'Unable to load examinations from the school database: $error',
+                style: const TextStyle(color: AppColors.dangerRed))),
+      ]),
+      data: (allExams) {
+        final availableExams = allExams
+            .where((exam) => !exam.isLocked && !exam.isPublished)
+            .toList();
+        final selectedMatches = availableExams
+            .where((exam) => exam.examId == _selectedExamId)
+            .toList();
+        final activeExam = selectedMatches.isNotEmpty
+            ? selectedMatches.first
+            : (availableExams.isNotEmpty ? availableExams.first : null);
+        if (activeExam == null) {
+          return ListView(padding: const EdgeInsets.all(20), children: [
+            ErpCard(
+              title: 'Draft Assessment Marks',
+              subtitle: 'Class $_selectedClass-$_selectedSection',
+              icon: Icons.edit_note_outlined,
+              iconColor: AppColors.teacherTeal,
+              child: const Text(
+                  'There are no open examinations configured in the school database. Ask the school administrator to create or unlock an examination before entering marks.'),
+            ),
+          ]);
+        }
+
+        final marksAsync = ref.watch(classMarksStreamProvider((
+          subjectId: 'SUB_MATH',
+          classId: _selectedClass,
+          sectionId: _selectedSection,
+        )));
+
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Marks Entry: Mathematics (Term 1 Exam)',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          letterSpacing: -0.3)),
-                  Text(
-                      'Structure: CA1 (max 20) + CA2 (max 20) + Exam (max 60) = 100',
-                      style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 12)),
-                ],
+            ErpCard(
+              title: 'Draft Assessment Marks',
+              subtitle:
+                  'Class $_selectedClass-$_selectedSection • Mathematics • CA1 /20 + CA2 /20 + Exam /60',
+              icon: Icons.edit_note_outlined,
+              iconColor: AppColors.teacherTeal,
+              headerTrailing: ErpButton(
+                icon: Icons.print,
+                label: isCompact ? 'Print' : 'Print grade sheet',
+                isPrimary: false,
+                isDense: true,
+                color: AppColors.teacherTeal,
+                onPressed: () {
+                  final studentList = studentsAsync.valueOrNull ?? [];
+                  final firstStudent = studentList.isNotEmpty
+                      ? studentList.first
+                      : Student(
+                          studentId: 'STU_SAMPLE',
+                          admissionNumber: 'ADM-2026-001',
+                          fullName:
+                              'Class $_selectedClass-$_selectedSection Grade Sheet',
+                          currentClassId: _selectedClass,
+                          currentSectionId: _selectedSection,
+                          currentAcademicYearId: 'AY-2026-2027',
+                          status: 'enrolled',
+                          enrollmentDate: DateTime.now(),
+                        );
+
+                  PrintPreviewDialog.showReportCard(
+                    context,
+                    student: firstStudent,
+                    examination: activeExam,
+                    marks: marksAsync.valueOrNull ?? const [],
+                  );
+                },
               ),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Choose an examination and student to enter or update marks. Saves are unpublished drafts; published results are not changed here.',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, height: 1.45),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: activeExam.examId,
+                      decoration: const InputDecoration(
+                          labelText: 'Examination',
+                          border: OutlineInputBorder()),
+                      items: availableExams
+                          .map((exam) => DropdownMenuItem<String>(
+                                value: exam.examId,
+                                child: Text(
+                                    '${exam.title}${exam.term.isNotEmpty ? ' • ${exam.term}' : ''}'),
+                              ))
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _selectedExamId = value),
+                    ),
+                  ]),
             ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ClayButton(
-                  height: 38,
-                  icon: Icons.print,
-                  label: isCompact ? 'Print' : 'Print Grade Sheet',
-                  variant: ClayButtonVariant.subtle,
-                  onPressed: () => PrintService.printDocument(),
-                ),
-                ClayButton(
-                  height: 38,
-                  icon: Icons.check,
-                  label: isCompact ? 'Save' : 'Save Draft Marks',
-                  variant: ClayButtonVariant.primary,
-                  customColor: AppColors.teacherTeal,
-                  onPressed: () async {
-                    try {
-                      for (var entry in _marksMap.entries) {
-                        final sId = entry.key;
-                        final scores = entry.value;
-                        final ca1 = scores['ca1'] ?? 0;
-                        final ca2 = scores['ca2'] ?? 0;
-                        final exam = scores['exam'] ?? 0;
-                        final total = ca1 + ca2 + exam;
-
-                        final markId = Mark.generateMarkId(
-                            'EXAM_TERM1_2026', sId, 'SUB_MATH');
-                        await ref.read(examRepositoryProvider).saveDraftMark(
-                              Mark(
-                                markId: markId,
-                                examId: 'EXAM_TERM1_2026',
-                                studentId: sId,
-                                subjectId: 'SUB_MATH',
-                                classId: _selectedClass,
-                                sectionId: _selectedSection,
-                                academicYearId: 'AY_2026_2027',
-                                continuousAssessment:
-                                    ContinuousAssessment(ca1: ca1, ca2: ca2),
-                                examScore: exam,
-                                totalScore: total,
-                                updatedBy: 'teacher_uid',
-                              ),
-                            );
-                      }
-
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Draft marks saved successfully for moderation!')),
-                        );
-                      }
-                    } catch (e, stack) {
-                      debugPrint(
-                          '[TeacherDashboardScreen.saveMarksDraft] Exception: $e\n$stack');
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text('Marks saved: ${e.toString()}')),
-                        );
-                      }
-                    }
+            const SizedBox(height: 16),
+            studentsAsync.when(
+              loading: () => const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator())),
+              error: (error, _) => ErpCard(
+                  child: Text('Unable to load the selected cohort: $error',
+                      style: const TextStyle(color: AppColors.dangerRed))),
+              data: (students) {
+                if (students.isEmpty) {
+                  return const ErpCard(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.people_outline,
+                                size: 40, color: AppColors.textMuted),
+                            SizedBox(height: 12),
+                            Text(
+                              'No Students in This Cohort',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'There are no student records for this assigned cohort. Marks cannot be entered until students are enrolled.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 13, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return marksAsync.when(
+                  loading: () => const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator())),
+                  error: (error, _) => ErpCard(
+                      child: Text('Unable to load saved draft marks: $error',
+                          style: const TextStyle(color: AppColors.dangerRed))),
+                  data: (marks) {
+                    final marksByStudent = <String, Mark>{
+                      for (final mark in marks
+                          .where((mark) => mark.examId == activeExam.examId))
+                        mark.studentId: mark,
+                    };
+                    return ErpCard(
+                      title: 'Student Marks Register',
+                      subtitle:
+                          '${students.length} students • ${activeExam.title} • Existing records loaded from the marks collection',
+                      icon: Icons.fact_check_outlined,
+                      iconColor: AppColors.teacherTeal,
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (var index = 0;
+                              index < students.length;
+                              index++) ...[
+                            _buildStudentMarkRow(
+                                students[index],
+                                marksByStudent[students[index].studentId],
+                                index,
+                                examId: activeExam.examId),
+                            if (index < students.length - 1)
+                              const Divider(
+                                  height: 1, color: AppColors.borderLight),
+                          ],
+                        ],
+                      ),
+                    );
                   },
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        AdaptiveDataView<MapEntry<String, Map<String, int>>>(
-          items: _marksMap.entries.toList(),
-          columns: [
-            AdaptiveColumn<MapEntry<String, Map<String, int>>>(
-              title: 'Student ID',
-              cellBuilder: (e) => Text('Student ${e.key}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 13)),
-            ),
-            AdaptiveColumn<MapEntry<String, Map<String, int>>>(
-              title: 'CA1 (/20)',
-              cellBuilder: (e) => Text('${e.value['ca1']}',
-                  style: const TextStyle(fontSize: 13)),
-            ),
-            AdaptiveColumn<MapEntry<String, Map<String, int>>>(
-              title: 'CA2 (/20)',
-              cellBuilder: (e) => Text('${e.value['ca2']}',
-                  style: const TextStyle(fontSize: 13)),
-            ),
-            AdaptiveColumn<MapEntry<String, Map<String, int>>>(
-              title: 'Exam (/60)',
-              cellBuilder: (e) => Text('${e.value['exam']}',
-                  style: const TextStyle(fontSize: 13)),
-            ),
-            AdaptiveColumn<MapEntry<String, Map<String, int>>>(
-              title: 'Total (/100)',
-              cellBuilder: (e) {
-                final total = (e.value['ca1'] ?? 0) +
-                    (e.value['ca2'] ?? 0) +
-                    (e.value['exam'] ?? 0);
-                return Text('$total',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                        color: AppColors.teacherTeal));
+                );
               },
             ),
           ],
-          mobileCardBuilder: (ctx, e) {
-            final scores = e.value;
-            final total = (scores['ca1'] ?? 0) +
-                (scores['ca2'] ?? 0) +
-                (scores['exam'] ?? 0);
-
-            return ClayCard(
-              title: 'Student ${e.key}',
-              subtitle: 'Class $_selectedClass-$_selectedSection • Math',
-              icon: Icons.person_outline,
-              iconColor: AppColors.teacherTeal,
-              headerAction: ClayContainer(
-                depth: ClayDepth.low,
-                borderRadius: ClayTheme.radiusPill,
-                surfaceColor: AppColors.teacherTeal.withValues(alpha: 0.1),
-                borderColor: AppColors.teacherTeal.withValues(alpha: 0.3),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                child: Text('Total $total/100',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                        color: AppColors.teacherTeal)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _scoreTile('CA 1', '${scores['ca1']}/20'),
-                      _scoreTile('CA 2', '${scores['ca2']}/20'),
-                      _scoreTile('Exam', '${scores['exam']}/60'),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ClayButton(
-                      height: 32,
-                      label: 'Grade / Edit Marks',
-                      icon: Icons.edit_note,
-                      variant: ClayButtonVariant.subtle,
-                      onPressed: () {
-                        final student = Student(
-                          studentId: e.key,
-                          admissionNumber: 'ADM-${e.key}',
-                          fullName: 'Student ${e.key}',
-                          currentClassId: _selectedClass,
-                          currentSectionId: _selectedSection,
-                          currentAcademicYearId: 'AY_2026_2027',
-                          status: 'enrolled',
-                        );
-                        SubmitMarksDialog.show(
-                          context,
-                          student: student,
-                          subject: 'Mathematics',
-                          initialCa1: scores['ca1'] ?? 18,
-                          initialCa2: scores['ca2'] ?? 19,
-                          initialExam: scores['exam'] ?? 52,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _scoreTile(String label, String value) {
-    return Column(
-      children: [
-        Text(label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-        const SizedBox(height: 2),
-        Text(value,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-      ],
-    );
-  }
-
-  Widget _buildMaterialsTab() {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Class Study Materials',
-                style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    letterSpacing: -0.3)),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ClayButton(
-                  height: 38,
-                  icon: Icons.assignment_outlined,
-                  label: 'Publish Homework',
-                  variant: ClayButtonVariant.secondary,
-                  onPressed: () => CreateHomeworkDialog.show(
-                    context,
-                    currentClass: _selectedClass,
-                    currentSection: _selectedSection,
-                  ),
-                ),
-                ClayButton(
-                  height: 38,
-                  icon: Icons.upload_file,
-                  label: 'Upload Resource',
-                  variant: ClayButtonVariant.primary,
-                  customColor: AppColors.teacherTeal,
-                  onPressed: () {
-                    UploadMaterialDialog.show(
-                      context,
-                      defaultClass: _selectedClass,
-                      defaultSection: _selectedSection,
-                      onUpload: ({
-                        required title,
-                        required classId,
-                        required sectionId,
-                        required subject,
-                        required fileName,
-                      }) async {},
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _buildMaterialItem('Chapter 4 - Quadratic Equations Notes.pdf',
-            'Class 10 - Mathematics', '2.4 MB', '2 days ago'),
-        const SizedBox(height: 12),
-        _buildMaterialItem('Unit 3 - Periodic Table Worksheet.pdf',
-            'Class 10 - Chemistry', '1.1 MB', 'Last week'),
-      ],
-    );
-  }
-
-  Widget _buildMaterialItem(
-      String title, String category, String size, String time) {
-    return ClayCard(
-      padding: const EdgeInsets.all(16),
+  Widget _buildStudentMarkRow(Student student, Mark? mark, int index,
+      {required String examId}) {
+    final total = mark?.totalScore;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          ClayContainer(
-            depth: ClayDepth.low,
-            borderRadius: ClayTheme.radiusSm,
-            surfaceColor: AppColors.teacherTeal.withValues(alpha: 0.1),
-            borderColor: AppColors.teacherTeal.withValues(alpha: 0.25),
-            padding: const EdgeInsets.all(10),
-            child: const Icon(Icons.picture_as_pdf,
-                color: AppColors.teacherTeal, size: 22),
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: AppColors.teacherTeal.withValues(alpha: 0.10),
+            child: Text('${index + 1}',
+                style: const TextStyle(
+                    color: AppColors.teacherTeal, fontWeight: FontWeight.w800)),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
+                Text(student.fullName,
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 14)),
-                const SizedBox(height: 2),
-                Text('$category • $size • $time',
+                const SizedBox(height: 3),
+                Text(
+                    '${student.admissionNumber} • ${mark == null ? 'No draft marks' : 'CA1 ${mark.continuousAssessment.ca1}/20 · CA2 ${mark.continuousAssessment.ca2}/20 · Exam ${mark.examScore}/60'}',
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
           ),
-          ClayButton(
-            height: 36,
-            icon: Icons.download,
-            label: 'Download',
-            variant: ClayButtonVariant.subtle,
-            onPressed: () {},
+          const SizedBox(width: 10),
+          if (mark != null)
+            ErpStatusBadge(
+              label: mark.isPublished
+                  ? 'PUBLISHED'
+                  : mark.isApproved
+                      ? 'APPROVED'
+                      : 'DRAFT',
+              backgroundColor:
+                  mark.isPublished ? AppColors.successBg : AppColors.infoBg,
+              textColor:
+                  mark.isPublished ? AppColors.successGreen : AppColors.infoSky,
+              icon: mark.isPublished ? Icons.verified : Icons.edit_note,
+            )
+          else
+            const ErpStatusBadge(
+                label: 'NOT ENTERED',
+                backgroundColor: AppColors.warningBg,
+                textColor: AppColors.warningAmber,
+                icon: Icons.pending_actions),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Enter or edit marks',
+            icon: const Icon(Icons.edit_outlined, color: AppColors.teacherTeal),
+            onPressed: mark?.isPublished == true
+                ? null
+                : () => SubmitMarksDialog.show(
+                      context,
+                      student: student,
+                      subject: 'Mathematics',
+                      examId: examId,
+                      subjectId: 'SUB_MATH',
+                      initialCa1: mark?.continuousAssessment.ca1 ?? 0,
+                      initialCa2: mark?.continuousAssessment.ca2 ?? 0,
+                      initialExam: mark?.examScore ?? 0,
+                    ),
+          ),
+          if (total != null) ...[
+            const SizedBox(width: 4),
+            Text('$total/100',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800, color: AppColors.teacherTeal)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaterialsTab() {
+    final profile = ref.watch(currentUserProfileProvider).value;
+    final user = profile;
+    final materialsQuery = FirebaseFirestore.instance
+        .collection('study_materials')
+        .where('classId', isEqualTo: _selectedClass)
+        .where('sectionId', isEqualTo: _selectedSection);
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      children: [
+        ErpCard(
+          title: 'Class Study Materials',
+          subtitle:
+              'Files are uploaded to restricted Firebase Storage paths and indexed in Firestore for the selected class and section.',
+          icon: Icons.folder_copy_outlined,
+          iconColor: AppColors.teacherTeal,
+          headerTrailing: ErpButton(
+            icon: Icons.upload_file,
+            label: 'Upload resource',
+            isDense: true,
+            color: AppColors.teacherTeal,
+            onPressed: () => UploadMaterialDialog.show(
+              context,
+              defaultClass: _selectedClass,
+              defaultSection: _selectedSection,
+              onUpload: ({
+                required title,
+                required classId,
+                required sectionId,
+                required subject,
+                required fileName,
+                required fileBytes,
+              }) async {
+                final profile = ref.read(currentUserProfileProvider).value;
+                if (profile == null) {
+                  throw Exception(
+                      'Your staff session has expired. Sign in again.');
+                }
+                final ext = fileName.contains('.')
+                    ? fileName.split('.').last.toLowerCase()
+                    : '';
+                const contentTypes = {
+                  'pdf': 'application/pdf',
+                  'zip': 'application/zip',
+                  'png': 'image/png',
+                  'jpg': 'image/jpeg',
+                  'jpeg': 'image/jpeg',
+                  'webp': 'image/webp',
+                  'doc': 'application/msword',
+                  'docx':
+                      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                };
+                final contentType = contentTypes[ext];
+                if (contentType == null) {
+                  throw Exception('This file type is not supported.');
+                }
+                final safeName =
+                    fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+                final materialRef = FirebaseFirestore.instance
+                    .collection('study_materials')
+                    .doc();
+                final storagePath =
+                    'study_materials/$classId/$sectionId/${materialRef.id}_$safeName';
+                final storageRef = FirebaseStorage.instance.ref(storagePath);
+                try {
+                  await storageRef.putData(
+                      fileBytes,
+                      SettableMetadata(
+                          contentType: contentType,
+                          customMetadata: {
+                            'uploadedBy': profile.uid,
+                            'schoolId': 'SCH_001',
+                            'classId': classId,
+                            'sectionId': sectionId,
+                          }));
+                  final downloadUrl = await storageRef.getDownloadURL();
+                  await materialRef.set({
+                    'materialId': materialRef.id,
+                    'schoolId': 'SCH_001',
+                    'title': title,
+                    'classId': classId,
+                    'sectionId': sectionId,
+                    'subjectId': subject,
+                    'fileName': fileName,
+                    'storagePath': storagePath,
+                    'downloadUrl': downloadUrl,
+                    'uploadedBy': profile.uid,
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+                } catch (_) {
+                  try {
+                    await storageRef.delete();
+                  } catch (_) {}
+                  rethrow;
+                }
+              },
+            ),
+          ),
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: user == null
+                ? const Stream.empty()
+                : materialsQuery.snapshots(),
+            builder: (context, snapshot) {
+              if (user == null) {
+                return const Text(
+                    'Load your staff profile to view class resources.');
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                    child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator()));
+              }
+              if (snapshot.hasError) {
+                return Text('Unable to load materials: ${snapshot.error}',
+                    style: const TextStyle(color: AppColors.dangerRed));
+              }
+              final docs = [...?snapshot.data?.docs];
+              docs.sort((a, b) {
+                final aDate = a.data()['createdAt'];
+                final bDate = b.data()['createdAt'];
+                final aMillis =
+                    aDate is Timestamp ? aDate.millisecondsSinceEpoch : 0;
+                final bMillis =
+                    bDate is Timestamp ? bDate.millisecondsSinceEpoch : 0;
+                return bMillis.compareTo(aMillis);
+              });
+              if (docs.isEmpty) {
+                return const ErpCard(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.folder_open_outlined,
+                              size: 40, color: AppColors.textMuted),
+                          SizedBox(height: 12),
+                          Text(
+                            'No Class Materials Yet',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Uploaded study resources for this assigned class and section will appear here.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 13, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return Column(children: [
+                for (var i = 0; i < docs.length; i++) ...[
+                  _buildMaterialItem(
+                    docs[i].data()['title']?.toString() ??
+                        docs[i].data()['fileName']?.toString() ??
+                        'Untitled resource',
+                    docs[i].data()['classId']?.toString() == null
+                        ? 'Class $_selectedClass'
+                        : 'Class ${docs[i].data()['classId']} • Section ${docs[i].data()['sectionId'] ?? _selectedSection}',
+                    docs[i].data()['subjectId']?.toString() ?? '',
+                    docs[i].data()['fileName']?.toString() ?? 'Document',
+                    docs[i].data()['downloadUrl']?.toString() ?? '',
+                  ),
+                  if (i < docs.length - 1) const SizedBox(height: 10),
+                ],
+              ]);
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        ErpCard(
+          title: 'Homework and Assignments',
+          subtitle:
+              'Create assignments for the selected cohort using the authorized homework workflow.',
+          icon: Icons.assignment_outlined,
+          iconColor: AppColors.teacherTeal,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: ErpButton(
+              icon: Icons.add_task,
+              label: 'Create homework',
+              color: AppColors.teacherTeal,
+              onPressed: () => CreateHomeworkDialog.show(context,
+                  currentClass: _selectedClass,
+                  currentSection: _selectedSection),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMaterialItem(String title, String category, String subject,
+      String fileName, String downloadUrl) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.borderLight),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                color: AppColors.teacherTeal.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.description_outlined,
+                color: AppColors.teacherTeal, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 3),
+              Text('$category • $subject',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary)),
+              Text(fileName,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textMuted)),
+            ]),
+          ),
+          IconButton(
+            tooltip: 'Copy secure download link',
+            icon: const Icon(Icons.link, color: AppColors.teacherTeal),
+            onPressed: downloadUrl.isEmpty
+                ? null
+                : () async {
+                    await Clipboard.setData(ClipboardData(text: downloadUrl));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Download link copied to clipboard.')));
+                    }
+                  },
           ),
         ],
       ),

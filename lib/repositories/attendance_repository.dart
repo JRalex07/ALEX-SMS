@@ -90,6 +90,18 @@ class AttendanceRepository {
     }
   }
 
+  /// Admin-only read model for the attendance review queue. Firestore rules
+  /// remain the source of authorization; the UI does not grant access.
+  Stream<List<AttendanceSession>> getAllSessionsStream() {
+    return _firestore.collection('attendance_sessions').snapshots().map((snapshot) {
+      final sessions = snapshot.docs
+          .map((doc) => AttendanceSession.fromFirestore(doc))
+          .toList();
+      sessions.sort((a, b) => b.date.compareTo(a.date));
+      return sessions;
+    });
+  }
+
   Stream<List<AttendanceRecord>> getSessionRecordsStream(String sessionId) {
     try {
       return _firestore

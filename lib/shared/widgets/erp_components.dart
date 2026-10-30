@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/breakpoints.dart';
 import '../../core/constants/role_colors.dart';
+import '../../core/theme/apple_design_system.dart';
 
 /// Professional School ERP Visual Design Components
 /// Clean, structured, high-density enterprise UI components.
@@ -38,15 +40,9 @@ class ErpCard extends StatelessWidget {
       margin: margin,
       decoration: BoxDecoration(
         color: backgroundColor ?? Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderLight, width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x080F172A),
-            offset: Offset(0, 1),
-            blurRadius: 4,
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppleSpatial.radiusMd),
+        border: Border.all(color: AppColors.borderLight, width: 1.0),
+        boxShadow: AppleMaterials.elevationCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -60,49 +56,115 @@ class ErpCard extends StatelessWidget {
                   bottom: BorderSide(color: AppColors.borderLight, width: 1),
                 ),
               ),
-              child: Row(
-                children: [
-                  if (icon != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: (iconColor ?? AppColors.brandNavy)
-                            .withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(icon,
-                          size: 16, color: iconColor ?? AppColors.brandNavy),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                  Expanded(
-                    child: Column(
+              child: LayoutBuilder(
+                builder: (context, headerConstraints) {
+                  final isNarrow = headerConstraints.maxWidth < 440;
+                  if (isNarrow && headerTrailing != null) {
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (title != null)
-                          Text(
-                            title!,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                              letterSpacing: -0.2,
+                        Row(
+                          children: [
+                            if (icon != null) ...[
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: (iconColor ?? AppColors.brandNavy)
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(icon,
+                                    size: 16,
+                                    color: iconColor ?? AppColors.brandNavy),
+                              ),
+                              const SizedBox(width: 10),
+                            ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (title != null)
+                                    Text(
+                                      title!,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                        letterSpacing: -0.2,
+                                      ),
+                                    ),
+                                  if (subtitle != null)
+                                    Text(
+                                      subtitle!,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
-                        if (subtitle != null)
-                          Text(
-                            subtitle!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: headerTrailing!,
+                        ),
                       ],
-                    ),
-                  ),
-                  if (headerTrailing != null) headerTrailing!,
-                ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      if (icon != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: (iconColor ?? AppColors.brandNavy)
+                                .withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(icon,
+                              size: 16,
+                              color: iconColor ?? AppColors.brandNavy),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (title != null)
+                              Text(
+                                title!,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            if (subtitle != null)
+                              Text(
+                                subtitle!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (headerTrailing != null) ...[
+                        const SizedBox(width: 10),
+                        headerTrailing!,
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -125,6 +187,9 @@ class ErpCard extends StatelessWidget {
   }
 }
 
+typedef MetricItem = ErpMetricItem;
+typedef MetricStrip = ErpMetricStrip;
+
 class ErpMetricItem {
   final String label;
   final String value;
@@ -138,11 +203,13 @@ class ErpMetricItem {
     required this.label,
     required this.value,
     this.subtitle,
-    required this.icon,
-    this.color = AppColors.brandNavy,
+    IconData? icon,
+    Color? color,
+    Color? accentColor,
     this.trend,
     this.isPositive = true,
-  });
+  })  : icon = icon ?? Icons.insights_rounded,
+        color = accentColor ?? color ?? AppColors.brandNavy;
 }
 
 class ErpMetricStrip extends StatelessWidget {
@@ -152,54 +219,25 @@ class ErpMetricStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 640;
-        final isMedium = constraints.maxWidth < 1100;
+    if (metrics.isEmpty) return const SizedBox.shrink();
 
-        if (isCompact) {
-          return Column(
-            children: metrics
-                .map((m) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _buildMetricTile(m),
-                    ))
-                .toList(),
-          );
-        }
-
-        final count = metrics.length;
-        return Row(
-          children: List.generate(count, (idx) {
-            final m = metrics[idx];
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: idx < count - 1 ? 12 : 0,
-                ),
-                child: _buildMetricTile(m, isMedium: isMedium),
-              ),
-            );
-          }),
-        );
-      },
+    return AdaptiveGrid(
+      minTileWidth: 220.0,
+      spacing: 12.0,
+      runSpacing: 10.0,
+      maxColumns: metrics.length,
+      children: metrics.map((m) => _buildMetricTile(m)).toList(),
     );
   }
 
-  Widget _buildMetricTile(ErpMetricItem item, {bool isMedium = false}) {
+  Widget _buildMetricTile(ErpMetricItem item) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderLight, width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x060F172A),
-            offset: Offset(0, 1),
-            blurRadius: 3,
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppleSpatial.radiusMd),
+        border: Border.all(color: AppColors.borderLight, width: 1.0),
+        boxShadow: AppleMaterials.elevationCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,9 +284,12 @@ class ErpMetricStrip extends StatelessWidget {
           ),
           if (item.subtitle != null || item.trend != null) ...[
             const SizedBox(height: 6),
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 4,
               children: [
-                if (item.trend != null) ...[
+                if (item.trend != null)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
@@ -269,19 +310,15 @@ class ErpMetricStrip extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                ],
                 if (item.subtitle != null)
-                  Expanded(
-                    child: Text(
-                      item.subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  Text(
+                    item.subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
               ],
@@ -346,18 +383,18 @@ class ErpStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: textColor.withValues(alpha: 0.25), width: 1),
+        borderRadius: BorderRadius.circular(AppleSpatial.radiusPill),
+        border: Border.all(color: textColor.withValues(alpha: 0.22), width: 1.0),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 11, color: textColor),
-            const SizedBox(width: 4),
+            Icon(icon, size: 12, color: textColor),
+            const SizedBox(width: 5),
           ],
           Text(
             label,
@@ -365,7 +402,7 @@ class ErpStatusBadge extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: textColor,
-              letterSpacing: 0.1,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -396,11 +433,11 @@ class ErpSearchBar extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            height: 38,
+            height: 40,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.borderLight, width: 1),
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(AppleSpatial.radiusMd),
+              border: Border.all(color: AppColors.borderLight, width: 1.0),
             ),
             child: TextField(
               controller: controller,
@@ -410,13 +447,15 @@ class ErpSearchBar extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
                 hintText: hintText,
                 hintStyle:
                     const TextStyle(fontSize: 13, color: AppColors.textMuted),
                 prefixIcon: const Icon(Icons.search,
                     size: 18, color: AppColors.textSecondary),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 suffixIcon: controller != null && controller!.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear,
@@ -471,11 +510,12 @@ class ErpButton extends StatelessWidget {
           backgroundColor: effectiveColor,
           foregroundColor: Colors.white,
           elevation: 0,
+          minimumSize: Size(isDense ? 40 : 44, isDense ? 36 : 44),
           padding: EdgeInsets.symmetric(
             horizontal: isDense ? 12 : 16,
             vertical: isDense ? 8 : 12,
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppleSpatial.radiusMd)),
         ),
         onPressed: onPressed,
         child: Row(
@@ -485,12 +525,17 @@ class ErpButton extends StatelessWidget {
               Icon(icon, size: isDense ? 14 : 16),
               const SizedBox(width: 6),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isDense ? 12 : 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.1,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: isDense ? 12 : 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                ),
               ),
             ),
           ],
@@ -500,13 +545,14 @@ class ErpButton extends StatelessWidget {
       return OutlinedButton(
         style: OutlinedButton.styleFrom(
           foregroundColor: effectiveColor,
+          minimumSize: Size(isDense ? 40 : 44, isDense ? 36 : 44),
           side: BorderSide(
-              color: effectiveColor.withValues(alpha: 0.4), width: 1),
+              color: effectiveColor.withValues(alpha: 0.35), width: 1.2),
           padding: EdgeInsets.symmetric(
             horizontal: isDense ? 12 : 16,
             vertical: isDense ? 8 : 12,
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppleSpatial.radiusMd)),
         ),
         onPressed: onPressed,
         child: Row(
@@ -516,17 +562,240 @@ class ErpButton extends StatelessWidget {
               Icon(icon, size: isDense ? 14 : 16),
               const SizedBox(width: 6),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isDense ? 12 : 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.1,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: isDense ? 12 : 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                ),
               ),
             ),
           ],
         ),
       );
     }
+  }
+}
+
+/// Enterprise column definition for data tables.
+class ErpColumn<T> {
+  final String title;
+  final Widget Function(T item) cellBuilder;
+  final double? flex;
+  final double? width;
+  final TextAlign textAlign;
+
+  const ErpColumn({
+    required this.title,
+    required this.cellBuilder,
+    this.flex = 1.0,
+    this.width,
+    this.textAlign = TextAlign.left,
+  });
+}
+
+/// Adaptive ERP data view component that renders a dense, interactive enterprise table on
+/// desktop/tablet viewports, and automatically transforms into crisp, border-outlined ERP cards
+/// on compact mobile viewports to prevent horizontal clipping.
+class ErpDataView<T> extends StatelessWidget {
+  final List<T> items;
+  final List<ErpColumn<T>> columns;
+  final Widget Function(BuildContext context, T item)? mobileCardBuilder;
+  final String emptyMessage;
+  final IconData emptyIcon;
+  final Widget? headerAction;
+  final double mobileBreakpoint;
+  final EdgeInsetsGeometry padding;
+
+  const ErpDataView({
+    super.key,
+    required this.items,
+    required this.columns,
+    this.mobileCardBuilder,
+    this.emptyMessage = 'No records found.',
+    this.emptyIcon = Icons.inbox_outlined,
+    this.headerAction,
+    this.mobileBreakpoint = 768.0,
+    this.padding = EdgeInsets.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(emptyIcon, size: 40, color: AppColors.textMuted),
+              const SizedBox(height: 12),
+              Text(
+                emptyMessage,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < mobileBreakpoint;
+
+        if (isMobile) {
+          return _buildMobileCardList(context);
+        } else {
+          return _buildDesktopTable(context, constraints);
+        }
+      },
+    );
+  }
+
+  Widget _buildMobileCardList(BuildContext context) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: padding,
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (ctx, index) {
+        final item = items[index];
+        if (mobileCardBuilder != null) {
+          return mobileCardBuilder!(ctx, item);
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppleSpatial.radiusMd),
+            border: Border.all(color: AppColors.borderLight, width: 1.0),
+            boxShadow: AppleMaterials.elevationSubtle,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: columns.map((col) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ConstrainedBox(
+                      constraints:
+                          const BoxConstraints(maxWidth: 110, minWidth: 70),
+                      child: Text(
+                        col.title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: col.cellBuilder(item)),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopTable(
+      BuildContext context, BoxConstraints parentConstraints) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppleSpatial.radiusMd),
+        border: Border.all(color: AppColors.borderLight, width: 1.0),
+        boxShadow: AppleMaterials.elevationCard,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppleSpatial.radiusMd),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: parentConstraints.maxWidth),
+            child: Table(
+              columnWidths: {
+                for (int i = 0; i < columns.length; i++)
+                  if (columns[i].width != null)
+                    i: FixedColumnWidth(columns[i].width!)
+                  else
+                    i: FlexColumnWidth(columns[i].flex ?? 1.0),
+              },
+              border: TableBorder(
+                horizontalInside: BorderSide(
+                  color: AppColors.borderLight.withValues(alpha: 0.6),
+                  width: 1,
+                ),
+              ),
+              children: [
+                TableRow(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8FAFC),
+                    border: Border(
+                      bottom:
+                          BorderSide(color: AppColors.borderLight, width: 1.5),
+                    ),
+                  ),
+                  children: columns.map((col) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Text(
+                        col.title.toUpperCase(),
+                        textAlign: col.textAlign,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                ...items.map((item) {
+                  return TableRow(
+                    children: columns.map((col) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        child: Align(
+                          alignment: col.textAlign == TextAlign.right
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: col.cellBuilder(item),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

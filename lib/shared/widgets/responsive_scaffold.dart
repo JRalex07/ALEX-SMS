@@ -2,11 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/app_routes.dart';
 import '../../core/constants/breakpoints.dart';
 import '../../core/constants/role_colors.dart';
-import '../../core/theme/clay_theme.dart';
 import '../../providers/auth_providers.dart';
-import '../clay/clay_container.dart';
 
 class NavItem {
   final String label;
@@ -21,6 +20,32 @@ class NavItem {
     required this.selectedIcon,
     required this.route,
     required this.allowedRoles,
+  });
+}
+
+class RoleNavCategory {
+  final String title;
+  final List<RoleNavEntry> entries;
+
+  const RoleNavCategory({
+    required this.title,
+    required this.entries,
+  });
+}
+
+class RoleNavEntry {
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final String route;
+  final String? badge;
+
+  const RoleNavEntry({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    required this.route,
+    this.badge,
   });
 }
 
@@ -149,6 +174,995 @@ class ResponsiveScaffold extends ConsumerWidget {
     ),
   ];
 
+  static List<RoleNavCategory> getRoleNavCategories(String role) {
+    switch (role) {
+      case UserRoles.schoolAdmin:
+        return const [
+          RoleNavCategory(
+            title: 'Overview',
+            entries: [
+              RoleNavEntry(
+                  label: 'Institutional Dashboard',
+                  icon: Icons.dashboard_outlined,
+                  selectedIcon: Icons.dashboard,
+                  route: AppRoutes.dashboard),
+              RoleNavEntry(
+                  label: 'School Calendar',
+                  icon: Icons.calendar_today_outlined,
+                  selectedIcon: Icons.calendar_today,
+                  route: AppRoutes.academicsCalendar),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Student Management',
+            entries: [
+              RoleNavEntry(
+                  label: 'All Students',
+                  icon: Icons.people_outline,
+                  selectedIcon: Icons.people,
+                  route: AppRoutes.students),
+              RoleNavEntry(
+                  label: 'Add New Student',
+                  icon: Icons.person_add_outlined,
+                  selectedIcon: Icons.person_add,
+                  route: AppRoutes.studentAdd),
+              RoleNavEntry(
+                  label: 'Student Profile Lookup',
+                  icon: Icons.badge_outlined,
+                  selectedIcon: Icons.badge,
+                  route: AppRoutes.studentLookup),
+              RoleNavEntry(
+                  label: 'Class & Section Transfers',
+                  icon: Icons.swap_horiz,
+                  selectedIcon: Icons.swap_horizontal_circle,
+                  route: AppRoutes.studentTransfers),
+              RoleNavEntry(
+                  label: 'Student Cohort Promotion',
+                  icon: Icons.trending_up,
+                  selectedIcon: Icons.trending_up,
+                  route: AppRoutes.studentPromotions),
+              RoleNavEntry(
+                  label: 'Student Status & Archives',
+                  icon: Icons.archive_outlined,
+                  selectedIcon: Icons.archive,
+                  route: AppRoutes.studentArchives),
+              RoleNavEntry(
+                  label: 'Parent / Guardian Directory',
+                  icon: Icons.family_restroom_outlined,
+                  selectedIcon: Icons.family_restroom,
+                  route: AppRoutes.studentGuardians),
+              RoleNavEntry(
+                  label: 'Link / Unlink Guardians',
+                  icon: Icons.link_outlined,
+                  selectedIcon: Icons.link,
+                  route: AppRoutes.studentLinkGuardians),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Admissions',
+            entries: [
+              RoleNavEntry(
+                  label: 'Admission Applications',
+                  icon: Icons.assignment_outlined,
+                  selectedIcon: Icons.assignment,
+                  route: AppRoutes.admissions),
+              RoleNavEntry(
+                  label: 'Review Queue',
+                  icon: Icons.rate_review_outlined,
+                  selectedIcon: Icons.rate_review,
+                  route: AppRoutes.admissionsReview),
+              RoleNavEntry(
+                  label: 'Document Verification',
+                  icon: Icons.verified_user_outlined,
+                  selectedIcon: Icons.verified_user,
+                  route: AppRoutes.admissionsVerification),
+              RoleNavEntry(
+                  label: 'Admissions Decisions',
+                  icon: Icons.gavel_outlined,
+                  selectedIcon: Icons.gavel,
+                  route: AppRoutes.admissionsDecisions),
+              RoleNavEntry(
+                  label: 'Enrollment Register',
+                  icon: Icons.how_to_reg_outlined,
+                  selectedIcon: Icons.how_to_reg,
+                  route: AppRoutes.admissionsEnrollment),
+              RoleNavEntry(
+                  label: 'Admission Reports',
+                  icon: Icons.analytics_outlined,
+                  selectedIcon: Icons.analytics,
+                  route: AppRoutes.admissionsReports),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Academic Management',
+            entries: [
+              RoleNavEntry(
+                  label: 'Academic Years & Terms',
+                  icon: Icons.date_range_outlined,
+                  selectedIcon: Icons.date_range,
+                  route: AppRoutes.academicsYears),
+              RoleNavEntry(
+                  label: 'Classes Management',
+                  icon: Icons.class_,
+                  selectedIcon: Icons.class_,
+                  route: AppRoutes.academicsClasses),
+              RoleNavEntry(
+                  label: 'Sections Management',
+                  icon: Icons.view_module_outlined,
+                  selectedIcon: Icons.view_module,
+                  route: AppRoutes.academicsSections),
+              RoleNavEntry(
+                  label: 'Subjects Catalog',
+                  icon: Icons.menu_book_outlined,
+                  selectedIcon: Icons.menu_book,
+                  route: AppRoutes.academicsSubjects),
+              RoleNavEntry(
+                  label: 'Master Timetable',
+                  icon: Icons.schedule_outlined,
+                  selectedIcon: Icons.schedule,
+                  route: AppRoutes.academicsTimetable),
+              RoleNavEntry(
+                  label: 'Holidays Calendar',
+                  icon: Icons.beach_access_outlined,
+                  selectedIcon: Icons.beach_access,
+                  route: AppRoutes.academicsHolidays),
+              RoleNavEntry(
+                  label: 'Homework & Assignments',
+                  icon: Icons.assignment_turned_in_outlined,
+                  selectedIcon: Icons.assignment_turned_in,
+                  route: AppRoutes.academicsHomework),
+              RoleNavEntry(
+                  label: 'Create Homework',
+                  icon: Icons.note_add_outlined,
+                  selectedIcon: Icons.note_add,
+                  route: AppRoutes.academicsHomeworkCreate),
+              RoleNavEntry(
+                  label: 'Homework Submissions',
+                  icon: Icons.upload_file_outlined,
+                  selectedIcon: Icons.upload_file,
+                  route: AppRoutes.academicsHomeworkSubmissions),
+              RoleNavEntry(
+                  label: 'Study Materials Repository',
+                  icon: Icons.folder_shared_outlined,
+                  selectedIcon: Icons.folder_shared,
+                  route: AppRoutes.academicsMaterials),
+              RoleNavEntry(
+                  label: 'Upload Study Material',
+                  icon: Icons.cloud_upload_outlined,
+                  selectedIcon: Icons.cloud_upload,
+                  route: AppRoutes.academicsMaterialsUpload),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Examinations',
+            entries: [
+              RoleNavEntry(
+                  label: 'Examinations Catalog',
+                  icon: Icons.fact_check_outlined,
+                  selectedIcon: Icons.fact_check,
+                  route: AppRoutes.examinations),
+              RoleNavEntry(
+                  label: 'Examination Schedule',
+                  icon: Icons.event_note_outlined,
+                  selectedIcon: Icons.event_note,
+                  route: AppRoutes.examinationsSchedule),
+              RoleNavEntry(
+                  label: 'Marks Entry',
+                  icon: Icons.edit_calendar_outlined,
+                  selectedIcon: Icons.edit_calendar,
+                  route: AppRoutes.examinationsMarks),
+              RoleNavEntry(
+                  label: 'Draft Marks Registry',
+                  icon: Icons.edit_note_outlined,
+                  selectedIcon: Icons.edit_note,
+                  route: AppRoutes.examinationsDrafts),
+              RoleNavEntry(
+                  label: 'Result Publication',
+                  icon: Icons.publish_outlined,
+                  selectedIcon: Icons.publish,
+                  route: AppRoutes.examinationsPublication),
+              RoleNavEntry(
+                  label: 'Official Report Cards',
+                  icon: Icons.badge_outlined,
+                  selectedIcon: Icons.badge,
+                  route: AppRoutes.examinationsReportCards),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Staff and Access',
+            entries: [
+              RoleNavEntry(
+                  label: 'Staff Directory',
+                  icon: Icons.badge_outlined,
+                  selectedIcon: Icons.badge,
+                  route: AppRoutes.staff),
+              RoleNavEntry(
+                  label: 'Add Staff Member',
+                  icon: Icons.person_add_alt_outlined,
+                  selectedIcon: Icons.person_add_alt,
+                  route: AppRoutes.staffAdd),
+              RoleNavEntry(
+                  label: 'Staff Roles & Permissions',
+                  icon: Icons.admin_panel_settings_outlined,
+                  selectedIcon: Icons.admin_panel_settings,
+                  route: AppRoutes.staffRoles),
+              RoleNavEntry(
+                  label: 'Teacher Workload & Assignments',
+                  icon: Icons.assignment_ind_outlined,
+                  selectedIcon: Icons.assignment_ind,
+                  route: AppRoutes.staffWorkload),
+              RoleNavEntry(
+                  label: 'Staff Account Activation',
+                  icon: Icons.manage_accounts_outlined,
+                  selectedIcon: Icons.manage_accounts,
+                  route: AppRoutes.staffActivation),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Attendance',
+            entries: [
+              RoleNavEntry(
+                  label: 'Attendance Overview',
+                  icon: Icons.co_present_outlined,
+                  selectedIcon: Icons.co_present,
+                  route: AppRoutes.attendance),
+              RoleNavEntry(
+                  label: 'Daily Attendance Register',
+                  icon: Icons.how_to_reg_outlined,
+                  selectedIcon: Icons.how_to_reg,
+                  route: AppRoutes.attendanceRegister),
+              RoleNavEntry(
+                  label: 'Class-wise Attendance',
+                  icon: Icons.group_outlined,
+                  selectedIcon: Icons.group,
+                  route: AppRoutes.attendanceClasswise),
+              RoleNavEntry(
+                  label: 'Absence Exceptions',
+                  icon: Icons.event_busy_outlined,
+                  selectedIcon: Icons.event_busy,
+                  route: AppRoutes.attendanceExceptions),
+              RoleNavEntry(
+                  label: 'Attendance Corrections',
+                  icon: Icons.published_with_changes_outlined,
+                  selectedIcon: Icons.published_with_changes,
+                  route: AppRoutes.attendanceCorrections),
+              RoleNavEntry(
+                  label: 'Attendance Reports',
+                  icon: Icons.insights_outlined,
+                  selectedIcon: Icons.insights,
+                  route: AppRoutes.attendanceReports),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Finance & Accounts',
+            entries: [
+              RoleNavEntry(
+                  label: 'Fee Structures',
+                  icon: Icons.account_tree_outlined,
+                  selectedIcon: Icons.account_tree,
+                  route: AppRoutes.feeStructures),
+              RoleNavEntry(
+                  label: 'Fee Plans',
+                  icon: Icons.payments_outlined,
+                  selectedIcon: Icons.payments,
+                  route: AppRoutes.feePlans),
+              RoleNavEntry(
+                  label: 'Student Fee Accounts',
+                  icon: Icons.account_box_outlined,
+                  selectedIcon: Icons.account_box,
+                  route: AppRoutes.feeAccounts),
+              RoleNavEntry(
+                  label: 'Invoices Registry',
+                  icon: Icons.receipt_long_outlined,
+                  selectedIcon: Icons.receipt_long,
+                  route: AppRoutes.feeInvoices),
+              RoleNavEntry(
+                  label: 'Generate New Invoice',
+                  icon: Icons.post_add_outlined,
+                  selectedIcon: Icons.post_add,
+                  route: AppRoutes.feeInvoicesGenerate),
+              RoleNavEntry(
+                  label: 'Payment Transactions',
+                  icon: Icons.paid_outlined,
+                  selectedIcon: Icons.paid,
+                  route: AppRoutes.feePayments),
+              RoleNavEntry(
+                  label: 'Offline Payments Entry',
+                  icon: Icons.point_of_sale_outlined,
+                  selectedIcon: Icons.point_of_sale,
+                  route: AppRoutes.feePaymentsOffline),
+              RoleNavEntry(
+                  label: 'Receipts Registry',
+                  icon: Icons.receipt_outlined,
+                  selectedIcon: Icons.receipt,
+                  route: AppRoutes.feeReceipts),
+              RoleNavEntry(
+                  label: 'Refund Management',
+                  icon: Icons.currency_exchange_outlined,
+                  selectedIcon: Icons.currency_exchange,
+                  route: AppRoutes.feeRefunds),
+              RoleNavEntry(
+                  label: 'Outstanding Dues',
+                  icon: Icons.pending_actions_outlined,
+                  selectedIcon: Icons.pending_actions,
+                  route: AppRoutes.feeDues),
+              RoleNavEntry(
+                  label: 'Financial Reports',
+                  icon: Icons.bar_chart_outlined,
+                  selectedIcon: Icons.bar_chart,
+                  route: AppRoutes.feeReports),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Library',
+            entries: [
+              RoleNavEntry(
+                  label: 'Library Catalog',
+                  icon: Icons.local_library_outlined,
+                  selectedIcon: Icons.local_library,
+                  route: AppRoutes.library),
+              RoleNavEntry(
+                  label: 'Add New Book',
+                  icon: Icons.library_add_outlined,
+                  selectedIcon: Icons.library_add,
+                  route: AppRoutes.libraryAdd),
+              RoleNavEntry(
+                  label: 'Issue Book',
+                  icon: Icons.outbox_outlined,
+                  selectedIcon: Icons.outbox,
+                  route: AppRoutes.libraryIssue),
+              RoleNavEntry(
+                  label: 'Return Book',
+                  icon: Icons.move_to_inbox_outlined,
+                  selectedIcon: Icons.move_to_inbox,
+                  route: AppRoutes.libraryReturn),
+              RoleNavEntry(
+                  label: 'Active Book Loans',
+                  icon: Icons.auto_stories_outlined,
+                  selectedIcon: Icons.auto_stories,
+                  route: AppRoutes.libraryLoans),
+              RoleNavEntry(
+                  label: 'Overdue Loans',
+                  icon: Icons.alarm_outlined,
+                  selectedIcon: Icons.alarm,
+                  route: AppRoutes.libraryOverdue),
+              RoleNavEntry(
+                  label: 'Library Members',
+                  icon: Icons.card_membership_outlined,
+                  selectedIcon: Icons.card_membership,
+                  route: AppRoutes.libraryMembers),
+              RoleNavEntry(
+                  label: 'Library Reports',
+                  icon: Icons.pie_chart_outline,
+                  selectedIcon: Icons.pie_chart,
+                  route: AppRoutes.libraryReports),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Institutional & Security',
+            entries: [
+              RoleNavEntry(
+                  label: 'Institutional Notices',
+                  icon: Icons.notifications_none,
+                  selectedIcon: Icons.notifications,
+                  route: AppRoutes.notices),
+              RoleNavEntry(
+                  label: 'Announcements Board',
+                  icon: Icons.campaign_outlined,
+                  selectedIcon: Icons.campaign,
+                  route: AppRoutes.announcements),
+              RoleNavEntry(
+                  label: 'Transport Fleet',
+                  icon: Icons.directions_bus_outlined,
+                  selectedIcon: Icons.directions_bus,
+                  route: AppRoutes.transport),
+              RoleNavEntry(
+                  label: 'Security Audit Logs',
+                  icon: Icons.security_outlined,
+                  selectedIcon: Icons.security,
+                  route: AppRoutes.auditLogs),
+              RoleNavEntry(
+                  label: 'System Settings',
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  route: AppRoutes.settings),
+            ],
+          ),
+        ];
+
+      case UserRoles.teacher:
+        return const [
+          RoleNavCategory(
+            title: 'My Teaching',
+            entries: [
+              RoleNavEntry(
+                  label: 'Teacher Dashboard',
+                  icon: Icons.dashboard_outlined,
+                  selectedIcon: Icons.dashboard,
+                  route: AppRoutes.dashboard),
+              RoleNavEntry(
+                  label: 'School Calendar',
+                  icon: Icons.calendar_today_outlined,
+                  selectedIcon: Icons.calendar_today,
+                  route: AppRoutes.academicsCalendar),
+              RoleNavEntry(
+                  label: 'My Timetable',
+                  icon: Icons.schedule_outlined,
+                  selectedIcon: Icons.schedule,
+                  route: AppRoutes.academicsTimetable),
+              RoleNavEntry(
+                  label: 'My Class Students',
+                  icon: Icons.people_outline,
+                  selectedIcon: Icons.people,
+                  route: AppRoutes.students),
+              RoleNavEntry(
+                  label: 'Student Profile Lookup',
+                  icon: Icons.badge_outlined,
+                  selectedIcon: Icons.badge,
+                  route: AppRoutes.studentLookup),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Attendance',
+            entries: [
+              RoleNavEntry(
+                  label: 'Daily Attendance Register',
+                  icon: Icons.how_to_reg_outlined,
+                  selectedIcon: Icons.how_to_reg,
+                  route: AppRoutes.attendanceRegister),
+              RoleNavEntry(
+                  label: 'Attendance Corrections',
+                  icon: Icons.published_with_changes_outlined,
+                  selectedIcon: Icons.published_with_changes,
+                  route: AppRoutes.attendanceCorrections),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Homework & Assignments',
+            entries: [
+              RoleNavEntry(
+                  label: 'Homework & Assignments',
+                  icon: Icons.assignment_turned_in_outlined,
+                  selectedIcon: Icons.assignment_turned_in,
+                  route: AppRoutes.academicsHomework),
+              RoleNavEntry(
+                  label: 'Create Homework',
+                  icon: Icons.note_add_outlined,
+                  selectedIcon: Icons.note_add,
+                  route: AppRoutes.academicsHomeworkCreate),
+              RoleNavEntry(
+                  label: 'Review Submissions',
+                  icon: Icons.upload_file_outlined,
+                  selectedIcon: Icons.upload_file,
+                  route: AppRoutes.academicsHomeworkSubmissions),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Learning Materials',
+            entries: [
+              RoleNavEntry(
+                  label: 'Study Materials Repository',
+                  icon: Icons.folder_shared_outlined,
+                  selectedIcon: Icons.folder_shared,
+                  route: AppRoutes.academicsMaterials),
+              RoleNavEntry(
+                  label: 'Upload Study Material',
+                  icon: Icons.cloud_upload_outlined,
+                  selectedIcon: Icons.cloud_upload,
+                  route: AppRoutes.academicsMaterialsUpload),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Examinations and Marks',
+            entries: [
+              RoleNavEntry(
+                  label: 'Examination Schedule',
+                  icon: Icons.event_note_outlined,
+                  selectedIcon: Icons.event_note,
+                  route: AppRoutes.examinationsSchedule),
+              RoleNavEntry(
+                  label: 'Enter Student Marks',
+                  icon: Icons.edit_calendar_outlined,
+                  selectedIcon: Icons.edit_calendar,
+                  route: AppRoutes.examinationsMarks),
+              RoleNavEntry(
+                  label: 'Draft Marks Registry',
+                  icon: Icons.edit_note_outlined,
+                  selectedIcon: Icons.edit_note,
+                  route: AppRoutes.examinationsDrafts),
+              RoleNavEntry(
+                  label: 'Student Report Cards',
+                  icon: Icons.badge_outlined,
+                  selectedIcon: Icons.badge,
+                  route: AppRoutes.examinationsReportCards),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Communication & Tools',
+            entries: [
+              RoleNavEntry(
+                  label: 'School Notices',
+                  icon: Icons.notifications_none,
+                  selectedIcon: Icons.notifications,
+                  route: AppRoutes.notices),
+              RoleNavEntry(
+                  label: 'Announcements',
+                  icon: Icons.campaign_outlined,
+                  selectedIcon: Icons.campaign,
+                  route: AppRoutes.announcements),
+              RoleNavEntry(
+                  label: 'Library Catalog',
+                  icon: Icons.local_library_outlined,
+                  selectedIcon: Icons.local_library,
+                  route: AppRoutes.library),
+              RoleNavEntry(
+                  label: 'My Profile & Settings',
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  route: AppRoutes.settings),
+            ],
+          ),
+        ];
+
+      case UserRoles.accountant:
+        return const [
+          RoleNavCategory(
+            title: 'Overview',
+            entries: [
+              RoleNavEntry(
+                  label: 'Finance Dashboard',
+                  icon: Icons.dashboard_outlined,
+                  selectedIcon: Icons.dashboard,
+                  route: AppRoutes.dashboard),
+              RoleNavEntry(
+                  label: 'Financial Reports',
+                  icon: Icons.bar_chart_outlined,
+                  selectedIcon: Icons.bar_chart,
+                  route: AppRoutes.feeReports),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Fee Configuration',
+            entries: [
+              RoleNavEntry(
+                  label: 'Fee Structures & Heads',
+                  icon: Icons.account_tree_outlined,
+                  selectedIcon: Icons.account_tree,
+                  route: AppRoutes.feeStructures),
+              RoleNavEntry(
+                  label: 'Fee Plans & Installments',
+                  icon: Icons.payments_outlined,
+                  selectedIcon: Icons.payments,
+                  route: AppRoutes.feePlans),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Student Accounts',
+            entries: [
+              RoleNavEntry(
+                  label: 'Student Fee Accounts',
+                  icon: Icons.account_box_outlined,
+                  selectedIcon: Icons.account_box,
+                  route: AppRoutes.feeAccounts),
+              RoleNavEntry(
+                  label: 'Student Directory',
+                  icon: Icons.people_outline,
+                  selectedIcon: Icons.people,
+                  route: AppRoutes.students),
+              RoleNavEntry(
+                  label: 'Outstanding Dues',
+                  icon: Icons.pending_actions_outlined,
+                  selectedIcon: Icons.pending_actions,
+                  route: AppRoutes.feeDues),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Invoicing',
+            entries: [
+              RoleNavEntry(
+                  label: 'All Invoices',
+                  icon: Icons.receipt_long_outlined,
+                  selectedIcon: Icons.receipt_long,
+                  route: AppRoutes.feeInvoices),
+              RoleNavEntry(
+                  label: 'Generate Invoice',
+                  icon: Icons.post_add_outlined,
+                  selectedIcon: Icons.post_add,
+                  route: AppRoutes.feeInvoicesGenerate),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Payments',
+            entries: [
+              RoleNavEntry(
+                  label: 'Payment Transactions',
+                  icon: Icons.paid_outlined,
+                  selectedIcon: Icons.paid,
+                  route: AppRoutes.feePayments),
+              RoleNavEntry(
+                  label: 'Record Offline Payment',
+                  icon: Icons.point_of_sale_outlined,
+                  selectedIcon: Icons.point_of_sale,
+                  route: AppRoutes.feePaymentsOffline),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Receipts & Adjustments',
+            entries: [
+              RoleNavEntry(
+                  label: 'Fee Receipts Registry',
+                  icon: Icons.receipt_outlined,
+                  selectedIcon: Icons.receipt,
+                  route: AppRoutes.feeReceipts),
+              RoleNavEntry(
+                  label: 'Refund Processing',
+                  icon: Icons.currency_exchange_outlined,
+                  selectedIcon: Icons.currency_exchange,
+                  route: AppRoutes.feeRefunds),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Institutional',
+            entries: [
+              RoleNavEntry(
+                  label: 'School Notices',
+                  icon: Icons.notifications_none,
+                  selectedIcon: Icons.notifications,
+                  route: AppRoutes.notices),
+              RoleNavEntry(
+                  label: 'Accountant Settings',
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  route: AppRoutes.settings),
+            ],
+          ),
+        ];
+
+      case UserRoles.admissionsOfficer:
+        return const [
+          RoleNavCategory(
+            title: 'Overview',
+            entries: [
+              RoleNavEntry(
+                  label: 'Admissions Dashboard',
+                  icon: Icons.dashboard_outlined,
+                  selectedIcon: Icons.dashboard,
+                  route: AppRoutes.dashboard),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Applications',
+            entries: [
+              RoleNavEntry(
+                  label: 'All Applications',
+                  icon: Icons.assignment_outlined,
+                  selectedIcon: Icons.assignment,
+                  route: AppRoutes.admissions),
+              RoleNavEntry(
+                  label: 'Review Queue',
+                  icon: Icons.rate_review_outlined,
+                  selectedIcon: Icons.rate_review,
+                  route: AppRoutes.admissionsReview),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Verification',
+            entries: [
+              RoleNavEntry(
+                  label: 'Document Verification',
+                  icon: Icons.verified_user_outlined,
+                  selectedIcon: Icons.verified_user,
+                  route: AppRoutes.admissionsVerification),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Decisions',
+            entries: [
+              RoleNavEntry(
+                  label: 'Admissions Decisions',
+                  icon: Icons.gavel_outlined,
+                  selectedIcon: Icons.gavel,
+                  route: AppRoutes.admissionsDecisions),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Enrollment',
+            entries: [
+              RoleNavEntry(
+                  label: 'Official Enrollment',
+                  icon: Icons.how_to_reg_outlined,
+                  selectedIcon: Icons.how_to_reg,
+                  route: AppRoutes.admissionsEnrollment),
+              RoleNavEntry(
+                  label: 'Enrolled Students Directory',
+                  icon: Icons.people_outline,
+                  selectedIcon: Icons.people,
+                  route: AppRoutes.students),
+              RoleNavEntry(
+                  label: 'Student Registration Form',
+                  icon: Icons.person_add_outlined,
+                  selectedIcon: Icons.person_add,
+                  route: AppRoutes.studentAdd),
+              RoleNavEntry(
+                  label: 'Parent & Guardian Directory',
+                  icon: Icons.family_restroom_outlined,
+                  selectedIcon: Icons.family_restroom,
+                  route: AppRoutes.studentGuardians),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Reports',
+            entries: [
+              RoleNavEntry(
+                  label: 'Admission Reports',
+                  icon: Icons.analytics_outlined,
+                  selectedIcon: Icons.analytics,
+                  route: AppRoutes.admissionsReports),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Institutional',
+            entries: [
+              RoleNavEntry(
+                  label: 'School Calendar',
+                  icon: Icons.calendar_today_outlined,
+                  selectedIcon: Icons.calendar_today,
+                  route: AppRoutes.academicsCalendar),
+              RoleNavEntry(
+                  label: 'Notices & Circulars',
+                  icon: Icons.notifications_none,
+                  selectedIcon: Icons.notifications,
+                  route: AppRoutes.notices),
+              RoleNavEntry(
+                  label: 'Officer Settings',
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  route: AppRoutes.settings),
+            ],
+          ),
+        ];
+
+      case UserRoles.librarian:
+        return const [
+          RoleNavCategory(
+            title: 'Overview',
+            entries: [
+              RoleNavEntry(
+                  label: 'Library Dashboard',
+                  icon: Icons.dashboard_outlined,
+                  selectedIcon: Icons.dashboard,
+                  route: AppRoutes.dashboard),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Catalog',
+            entries: [
+              RoleNavEntry(
+                  label: 'Library Catalog',
+                  icon: Icons.local_library_outlined,
+                  selectedIcon: Icons.local_library,
+                  route: AppRoutes.library),
+              RoleNavEntry(
+                  label: 'Add New Book',
+                  icon: Icons.library_add_outlined,
+                  selectedIcon: Icons.library_add,
+                  route: AppRoutes.libraryAdd),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Circulation',
+            entries: [
+              RoleNavEntry(
+                  label: 'Issue Book',
+                  icon: Icons.outbox_outlined,
+                  selectedIcon: Icons.outbox,
+                  route: AppRoutes.libraryIssue),
+              RoleNavEntry(
+                  label: 'Return Book',
+                  icon: Icons.move_to_inbox_outlined,
+                  selectedIcon: Icons.move_to_inbox,
+                  route: AppRoutes.libraryReturn),
+              RoleNavEntry(
+                  label: 'Active Outstanding Loans',
+                  icon: Icons.auto_stories_outlined,
+                  selectedIcon: Icons.auto_stories,
+                  route: AppRoutes.libraryLoans),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Availability and Overdue',
+            entries: [
+              RoleNavEntry(
+                  label: 'Overdue Loans & Fines',
+                  icon: Icons.alarm_outlined,
+                  selectedIcon: Icons.alarm,
+                  route: AppRoutes.libraryOverdue),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Library Members',
+            entries: [
+              RoleNavEntry(
+                  label: 'Library Members',
+                  icon: Icons.card_membership_outlined,
+                  selectedIcon: Icons.card_membership,
+                  route: AppRoutes.libraryMembers),
+              RoleNavEntry(
+                  label: 'Student Directory',
+                  icon: Icons.people_outline,
+                  selectedIcon: Icons.people,
+                  route: AppRoutes.students),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Fines and Reports',
+            entries: [
+              RoleNavEntry(
+                  label: 'Circulation & Inventory Reports',
+                  icon: Icons.pie_chart_outline,
+                  selectedIcon: Icons.pie_chart,
+                  route: AppRoutes.libraryReports),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Institutional',
+            entries: [
+              RoleNavEntry(
+                  label: 'School Notices',
+                  icon: Icons.notifications_none,
+                  selectedIcon: Icons.notifications,
+                  route: AppRoutes.notices),
+              RoleNavEntry(
+                  label: 'Librarian Settings',
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  route: AppRoutes.settings),
+            ],
+          ),
+        ];
+
+      case UserRoles.parentGuardian:
+      default:
+        return const [
+          RoleNavCategory(
+            title: 'Academics',
+            entries: [
+              RoleNavEntry(
+                  label: 'Parent Dashboard',
+                  icon: Icons.dashboard_outlined,
+                  selectedIcon: Icons.dashboard,
+                  route: AppRoutes.dashboard),
+              RoleNavEntry(
+                  label: 'Switch Child',
+                  icon: Icons.switch_account_outlined,
+                  selectedIcon: Icons.switch_account,
+                  route: AppRoutes.parentChildren),
+              RoleNavEntry(
+                  label: 'Child Timetable',
+                  icon: Icons.schedule_outlined,
+                  selectedIcon: Icons.schedule,
+                  route: AppRoutes.parentTimetable),
+              RoleNavEntry(
+                  label: 'Attendance Record',
+                  icon: Icons.co_present_outlined,
+                  selectedIcon: Icons.co_present,
+                  route: AppRoutes.parentAttendance),
+              RoleNavEntry(
+                  label: 'Homework & Submissions',
+                  icon: Icons.assignment_turned_in_outlined,
+                  selectedIcon: Icons.assignment_turned_in,
+                  route: AppRoutes.parentHomework),
+              RoleNavEntry(
+                  label: 'Curriculum Study Materials',
+                  icon: Icons.menu_book_outlined,
+                  selectedIcon: Icons.menu_book,
+                  route: AppRoutes.parentMaterials),
+              RoleNavEntry(
+                  label: 'Upcoming Examinations',
+                  icon: Icons.event_note_outlined,
+                  selectedIcon: Icons.event_note,
+                  route: AppRoutes.parentExams),
+              RoleNavEntry(
+                  label: 'Examination Results',
+                  icon: Icons.fact_check_outlined,
+                  selectedIcon: Icons.fact_check,
+                  route: AppRoutes.parentResults),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Fees',
+            entries: [
+              RoleNavEntry(
+                  label: 'Fee Summary & Invoices',
+                  icon: Icons.receipt_long_outlined,
+                  selectedIcon: Icons.receipt_long,
+                  route: AppRoutes.parentFees),
+              RoleNavEntry(
+                  label: 'Official Fee Receipts',
+                  icon: Icons.receipt_outlined,
+                  selectedIcon: Icons.receipt,
+                  route: AppRoutes.parentReceipts),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Requests & Communication',
+            entries: [
+              RoleNavEntry(
+                  label: 'School Notices',
+                  icon: Icons.notifications_none,
+                  selectedIcon: Icons.notifications,
+                  route: AppRoutes.notices),
+              RoleNavEntry(
+                  label: 'Official Announcements',
+                  icon: Icons.campaign_outlined,
+                  selectedIcon: Icons.campaign,
+                  route: AppRoutes.announcements),
+              RoleNavEntry(
+                  label: 'Requests & Applications',
+                  icon: Icons.assignment_outlined,
+                  selectedIcon: Icons.assignment,
+                  route: AppRoutes.parentRequests),
+              RoleNavEntry(
+                  label: 'Apply for Leave',
+                  icon: Icons.time_to_leave_outlined,
+                  selectedIcon: Icons.time_to_leave,
+                  route: AppRoutes.parentLeave),
+              RoleNavEntry(
+                  label: 'School Helpdesk & Support',
+                  icon: Icons.support_agent_outlined,
+                  selectedIcon: Icons.support_agent,
+                  route: AppRoutes.parentSupport),
+            ],
+          ),
+          RoleNavCategory(
+            title: 'Additional Services',
+            entries: [
+              RoleNavEntry(
+                  label: 'Parent Profile',
+                  icon: Icons.person_outline,
+                  selectedIcon: Icons.person,
+                  route: AppRoutes.settings),
+            ],
+          ),
+        ];
+    }
+  }
+
+  static bool isNavEntryActive(RoleNavEntry entry, String currentRoute) {
+    final cleanCurrent = currentRoute.split('?').first;
+    final cleanEntry = entry.route.split('?').first;
+
+    if (cleanEntry == cleanCurrent) {
+      return true;
+    }
+
+    // Handle student detail routes such as /students/:studentId
+    if (cleanEntry == AppRoutes.studentLookup &&
+        cleanCurrent.startsWith('/students/') &&
+        !cleanCurrent.endsWith('/add') &&
+        !cleanCurrent.endsWith('/transfers') &&
+        !cleanCurrent.endsWith('/promotions') &&
+        !cleanCurrent.endsWith('/archives') &&
+        !cleanCurrent.endsWith('/guardians') &&
+        !cleanCurrent.endsWith('/link-guardians')) {
+      return true;
+    }
+
+    // Handle admissions detail routes such as /admissions/:applicationId
+    if (cleanEntry == AppRoutes.admissions &&
+        cleanCurrent.startsWith('/admissions/') &&
+        !cleanCurrent.endsWith('/apply') &&
+        !cleanCurrent.endsWith('/review') &&
+        !cleanCurrent.endsWith('/verification') &&
+        !cleanCurrent.endsWith('/decisions') &&
+        !cleanCurrent.endsWith('/enrollment') &&
+        !cleanCurrent.endsWith('/reports')) {
+      return true;
+    }
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProfileProvider).value;
@@ -166,34 +1180,53 @@ class ResponsiveScaffold extends ConsumerWidget {
         permittedItems.indexWhere((item) => item.route == currentRoute);
     if (selectedRouteIndex < 0) selectedRouteIndex = 0;
 
-    const isWebPlatform = kIsWeb;
-
     if (isMobile) {
-      return _buildMobileLayout(
-        context: context,
-        ref: ref,
-        role: role,
-        roleColor: roleColor,
-        roleDisplayName: roleDisplayName,
-        userEmail: user?.email ?? user?.displayName ?? 'Verified User',
-        permittedItems: permittedItems,
-        selectedRouteIndex: selectedRouteIndex,
-        isWeb: isWebPlatform,
-      );
+      return !kIsWeb
+          ? _buildNativeMobileLayout(
+              context: context,
+              ref: ref,
+              role: role,
+              roleColor: roleColor,
+              roleDisplayName: roleDisplayName,
+              userEmail: user?.email ?? user?.displayName ?? 'Verified User',
+              permittedItems: permittedItems,
+              selectedRouteIndex: selectedRouteIndex,
+            )
+          : _buildWebMobileLayout(
+              context: context,
+              ref: ref,
+              role: role,
+              roleColor: roleColor,
+              roleDisplayName: roleDisplayName,
+              userEmail: user?.email ?? user?.displayName ?? 'Verified User',
+              permittedItems: permittedItems,
+              selectedRouteIndex: selectedRouteIndex,
+            );
     } else if (isTablet) {
-      return _buildTabletLayout(
-        context: context,
-        ref: ref,
-        role: role,
-        roleColor: roleColor,
-        roleDisplayName: roleDisplayName,
-        userEmail: user?.email ?? user?.displayName ?? 'Verified User',
-        permittedItems: permittedItems,
-        selectedRouteIndex: selectedRouteIndex,
-        isWeb: isWebPlatform,
-      );
+      return !kIsWeb
+          ? _buildNativeTabletLayout(
+              context: context,
+              ref: ref,
+              role: role,
+              roleColor: roleColor,
+              roleDisplayName: roleDisplayName,
+              userEmail: user?.email ?? user?.displayName ?? 'Verified User',
+              permittedItems: permittedItems,
+              selectedRouteIndex: selectedRouteIndex,
+            )
+          : _buildWebTabletLayout(
+              context: context,
+              ref: ref,
+              role: role,
+              roleColor: roleColor,
+              roleDisplayName: roleDisplayName,
+              userEmail: user?.email ?? user?.displayName ?? 'Verified User',
+              permittedItems: permittedItems,
+              selectedRouteIndex: selectedRouteIndex,
+            );
     } else {
-      return _buildDesktopLayout(
+      // Desktop Viewports (>= 1024): Enterprise Desktop ERP Layout
+      return _buildWebDesktopLayout(
         context: context,
         ref: ref,
         role: role,
@@ -202,13 +1235,12 @@ class ResponsiveScaffold extends ConsumerWidget {
         userEmail: user?.email ?? user?.displayName ?? 'Verified User',
         permittedItems: permittedItems,
         selectedRouteIndex: selectedRouteIndex,
-        isWeb: isWebPlatform,
       );
     }
   }
 
-  // --- 1. MOBILE FORM FACTOR (<600px) ---
-  Widget _buildMobileLayout({
+  // --- 1. NATIVE MOBILE PRESENTATION (<600px on Android/iOS) ---
+  Widget _buildNativeMobileLayout({
     required BuildContext context,
     required WidgetRef ref,
     required String role,
@@ -217,58 +1249,131 @@ class ResponsiveScaffold extends ConsumerWidget {
     required String userEmail,
     required List<NavItem> permittedItems,
     required int selectedRouteIndex,
-    bool isWeb = false,
+  }) {
+    return _buildMobileScaffold(
+      context: context,
+      ref: ref,
+      role: role,
+      roleColor: roleColor,
+      roleDisplayName: roleDisplayName,
+      userEmail: userEmail,
+      permittedItems: permittedItems,
+      selectedRouteIndex: selectedRouteIndex,
+      isWeb: false,
+    );
+  }
+
+  // --- 2. WEB MOBILE PRESENTATION (<600px on Web Browser) ---
+  Widget _buildWebMobileLayout({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String role,
+    required Color roleColor,
+    required String roleDisplayName,
+    required String userEmail,
+    required List<NavItem> permittedItems,
+    required int selectedRouteIndex,
+  }) {
+    return _buildMobileScaffold(
+      context: context,
+      ref: ref,
+      role: role,
+      roleColor: roleColor,
+      roleDisplayName: roleDisplayName,
+      userEmail: userEmail,
+      permittedItems: permittedItems,
+      selectedRouteIndex: selectedRouteIndex,
+      isWeb: true,
+    );
+  }
+
+  Widget _buildMobileScaffold({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String role,
+    required Color roleColor,
+    required String roleDisplayName,
+    required String userEmail,
+    required List<NavItem> permittedItems,
+    required int selectedRouteIndex,
+    required bool isWeb,
   }) {
     final hasSubTabs = navDestinations != null && navDestinations!.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: ClayTheme.clayCanvas,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        scrolledUnderElevation: 2,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.2,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: roleColor,
-                    shape: BoxShape.circle,
+        scrolledUnderElevation: 1,
+        title: isWeb
+            ? Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.brandNavy,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child:
+                        const Icon(Icons.school, color: Colors.white, size: 16),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    roleDisplayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: roleColor,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: roleColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          roleDisplayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: roleColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
         actions: [
           ...?actions,
           IconButton(
@@ -280,150 +1385,198 @@ class ResponsiveScaffold extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      drawer: Drawer(
-        backgroundColor: ClayTheme.clayCanvas,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                color: AppColors.brandNavy,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.brandNavy,
-                    AppColors.brandNavyDark,
-                  ],
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ClayContainer(
-                    depth: ClayDepth.low,
-                    borderRadius: ClayTheme.radiusSm,
-                    surfaceColor: Colors.white.withValues(alpha: 0.15),
-                    borderColor: Colors.white.withValues(alpha: 0.3),
-                    padding: const EdgeInsets.all(8),
-                    child:
-                        const Icon(Icons.school, color: Colors.white, size: 24),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    isWeb ? 'LAV Academy • Web Portal' : 'LAV Academy SMS',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  Text(
-                    userEmail,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ...permittedItems.map((item) {
-              final isSelected = item.route == currentRoute;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                child: ClayContainer(
-                  depth: isSelected ? ClayDepth.low : ClayDepth.flat,
-                  surfaceColor: isSelected
-                      ? roleColor.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  borderColor: isSelected
-                      ? roleColor.withValues(alpha: 0.3)
-                      : Colors.transparent,
-                  borderRadius: ClayTheme.radiusSm,
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (item.route != currentRoute) {
-                      context.go(item.route);
-                    }
-                  },
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(
-                      isSelected ? item.selectedIcon : item.icon,
-                      color: isSelected ? roleColor : AppColors.textSecondary,
-                    ),
-                    title: Text(
-                      item.label,
-                      style: TextStyle(
-                        fontWeight:
-                            isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: isSelected ? roleColor : AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.dangerRed),
-              title: const Text('Sign Out',
-                  style: TextStyle(
-                      color: AppColors.dangerRed, fontWeight: FontWeight.w700)),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmSignOut(context, ref);
-              },
-            ),
-          ],
-        ),
+      drawer: _buildRoleDrawer(
+        context: context,
+        ref: ref,
+        role: role,
+        roleColor: roleColor,
+        userEmail: userEmail,
+        isWeb: isWeb,
       ),
       body: SafeArea(
         child: body,
       ),
-      bottomNavigationBar: hasSubTabs
-          ? NavigationBar(
-              selectedIndex: selectedNavIndex,
-              onDestinationSelected: onNavIndexChanged,
-              destinations: navDestinations!,
-              backgroundColor: Colors.white,
-              indicatorColor: roleColor.withValues(alpha: 0.14),
-              elevation: 4,
-            )
-          : (permittedItems.length > 1
+      bottomNavigationBar: isWeb
+          ? null
+          : (hasSubTabs
               ? NavigationBar(
-                  selectedIndex:
-                      selectedRouteIndex < permittedItems.take(4).length
-                          ? selectedRouteIndex
-                          : 0,
-                  onDestinationSelected: (idx) {
-                    final target = permittedItems.take(4).toList()[idx];
-                    if (target.route != currentRoute) {
-                      context.go(target.route);
-                    }
-                  },
-                  destinations: permittedItems
-                      .take(4)
-                      .map((item) => NavigationDestination(
-                            icon: Icon(item.icon),
-                            selectedIcon: Icon(item.selectedIcon),
-                            label: item.label,
-                          ))
-                      .toList(),
+                  selectedIndex: selectedNavIndex,
+                  onDestinationSelected: onNavIndexChanged,
+                  destinations: navDestinations!,
                   backgroundColor: Colors.white,
                   indicatorColor: roleColor.withValues(alpha: 0.14),
                   elevation: 4,
                 )
-              : null),
+              : (permittedItems.length > 1
+                  ? NavigationBar(
+                      selectedIndex:
+                          selectedRouteIndex < permittedItems.take(4).length
+                              ? selectedRouteIndex
+                              : 0,
+                      onDestinationSelected: (idx) {
+                        final target = permittedItems.take(4).toList()[idx];
+                        if (target.route != currentRoute) {
+                          context.go(target.route);
+                        }
+                      },
+                      destinations: permittedItems
+                          .take(4)
+                          .map((item) => NavigationDestination(
+                                icon: Icon(item.icon),
+                                selectedIcon: Icon(item.selectedIcon),
+                                label: item.label,
+                              ))
+                          .toList(),
+                      backgroundColor: Colors.white,
+                      indicatorColor: roleColor.withValues(alpha: 0.14),
+                      elevation: 4,
+                    )
+                  : null)),
       floatingActionButton: floatingActionButton,
     );
   }
 
-  // --- 2. TABLET FORM FACTOR (600px - 1023px) ---
-  Widget _buildTabletLayout({
+  Widget _buildRoleDrawer({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String role,
+    required Color roleColor,
+    required String userEmail,
+    required bool isWeb,
+  }) {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              color: AppColors.brandNavy,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.brandNavy,
+                  AppColors.brandNavyDark,
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3)),
+                  ),
+                  child:
+                      const Icon(Icons.school, color: Colors.white, size: 24),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  isWeb ? 'LAV Academy • Web Portal' : 'LAV Academy SMS',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                Text(
+                  userEmail,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...getRoleNavCategories(role).expand((category) => [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(
+                    category.title.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+                ...category.entries.map((item) {
+                  final isSelected = isNavEntryActive(item, currentRoute);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    child: Material(
+                      color: isSelected
+                          ? roleColor.withValues(alpha: 0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                      child: ListTile(
+                        dense: true,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          side: BorderSide(
+                            color: isSelected
+                                ? roleColor.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        leading: Icon(
+                          isSelected ? item.selectedIcon : item.icon,
+                          color: isSelected
+                              ? roleColor
+                              : AppColors.textSecondary,
+                          size: 20,
+                        ),
+                        title: Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected
+                                ? FontWeight.w800
+                                : FontWeight.w600,
+                            color: isSelected
+                                ? roleColor
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (item.route != currentRoute) {
+                            context.go(item.route);
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                }),
+              ]),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: AppColors.dangerRed),
+            title: const Text('Sign Out',
+                style: TextStyle(
+                    color: AppColors.dangerRed, fontWeight: FontWeight.w700)),
+            onTap: () {
+              Navigator.pop(context);
+              _confirmSignOut(context, ref);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 3. NATIVE TABLET PRESENTATION (Any Tablet on Android/iOS) ---
+  Widget _buildNativeTabletLayout({
     required BuildContext context,
     required WidgetRef ref,
     required String role,
@@ -432,46 +1585,98 @@ class ResponsiveScaffold extends ConsumerWidget {
     required String userEmail,
     required List<NavItem> permittedItems,
     required int selectedRouteIndex,
-    bool isWeb = false,
+  }) {
+    return _buildTabletScaffold(
+      context: context,
+      ref: ref,
+      role: role,
+      roleColor: roleColor,
+      roleDisplayName: roleDisplayName,
+      userEmail: userEmail,
+      permittedItems: permittedItems,
+      selectedRouteIndex: selectedRouteIndex,
+      isWeb: false,
+    );
+  }
+
+  // --- 4. WEB TABLET PRESENTATION (600px - 1023px on Web Browser) ---
+  Widget _buildWebTabletLayout({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String role,
+    required Color roleColor,
+    required String roleDisplayName,
+    required String userEmail,
+    required List<NavItem> permittedItems,
+    required int selectedRouteIndex,
+  }) {
+    return _buildTabletScaffold(
+      context: context,
+      ref: ref,
+      role: role,
+      roleColor: roleColor,
+      roleDisplayName: roleDisplayName,
+      userEmail: userEmail,
+      permittedItems: permittedItems,
+      selectedRouteIndex: selectedRouteIndex,
+      isWeb: true,
+    );
+  }
+
+  Widget _buildTabletScaffold({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String role,
+    required Color roleColor,
+    required String roleDisplayName,
+    required String userEmail,
+    required List<NavItem> permittedItems,
+    required int selectedRouteIndex,
+    required bool isWeb,
   }) {
     final hasSubTabs = navDestinations != null && navDestinations!.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: ClayTheme.clayCanvas,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        scrolledUnderElevation: 2,
+        scrolledUnderElevation: 1,
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(
+            Expanded(
+              flex: 3,
               child: Text(
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 18,
+                  fontSize: 16,
                   letterSpacing: -0.3,
                   color: AppColors.textPrimary,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: roleColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(ClayTheme.radiusPill),
-                border: Border.all(color: roleColor.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                roleDisplayName,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: roleColor,
+            const SizedBox(width: 8),
+            Flexible(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: roleColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: roleColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  roleDisplayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: roleColor,
+                  ),
                 ),
               ),
             ),
@@ -488,6 +1693,14 @@ class ResponsiveScaffold extends ConsumerWidget {
           const SizedBox(width: 12),
         ],
       ),
+      drawer: _buildRoleDrawer(
+        context: context,
+        ref: ref,
+        role: role,
+        roleColor: roleColor,
+        userEmail: userEmail,
+        isWeb: isWeb,
+      ),
       body: Row(
         children: [
           // Tactile NavigationRail for Tablet
@@ -502,14 +1715,22 @@ class ResponsiveScaffold extends ConsumerWidget {
             labelType: NavigationRailLabelType.selected,
             backgroundColor: Colors.white,
             indicatorColor: roleColor.withValues(alpha: 0.16),
-            leading: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: ClayContainer(
-                depth: ClayDepth.low,
-                borderRadius: ClayTheme.radiusSm,
-                surfaceColor: AppColors.brandNavy,
-                padding: EdgeInsets.all(8),
-                child: Icon(Icons.school, size: 22, color: Colors.white),
+            leading: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.brandNavy,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A1E3A8A),
+                      offset: Offset(0, 2),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.school, size: 22, color: Colors.white),
               ),
             ),
             destinations: permittedItems
@@ -576,8 +1797,8 @@ class ResponsiveScaffold extends ConsumerWidget {
     );
   }
 
-  // --- 3. DESKTOP & WIDE FORM FACTOR (>=1024px) ---
-  Widget _buildDesktopLayout({
+  // --- 5. WEB DESKTOP PRESENTATION (>=1024px on Web Browser) ---
+  Widget _buildWebDesktopLayout({
     required BuildContext context,
     required WidgetRef ref,
     required String role,
@@ -631,7 +1852,8 @@ class ResponsiveScaffold extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.school, color: Colors.white, size: 22),
+                        child: const Icon(Icons.school,
+                            color: Colors.white, size: 22),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -664,13 +1886,15 @@ class ResponsiveScaffold extends ConsumerWidget {
 
                 // Current Authenticated Identity Profile Box
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.borderLight, width: 1),
+                      border:
+                          Border.all(color: AppColors.borderLight, width: 1),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,14 +1922,16 @@ class ResponsiveScaffold extends ConsumerWidget {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: roleColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
                                 'AY 2026-27',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                    fontSize: 10, fontWeight: FontWeight.w700),
                               ),
                             ),
                           ],
@@ -740,69 +1966,90 @@ class ResponsiveScaffold extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
 
-                // Navigation Items List
+                // Grouped Navigation Items List
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: permittedItems.map((item) {
-                      final isSelected = item.route == currentRoute;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 3),
-                        child: Material(
-                          color: isSelected
-                              ? roleColor.withValues(alpha: 0.08)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(6),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(6),
-                            onTap: () {
-                              if (item.route != currentRoute) {
-                                context.go(item.route);
-                              }
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 9),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isSelected ? item.selectedIcon : item.icon,
-                                    size: 18,
-                                    color: isSelected
-                                        ? roleColor
-                                        : AppColors.textSecondary,
+                    children: getRoleNavCategories(role)
+                        .expand((category) => [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(10, 14, 10, 4),
+                                child: Text(
+                                  category.title.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                    color: AppColors.textMuted,
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      item.label,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: isSelected
-                                            ? roleColor
-                                            : AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isSelected)
-                                    Container(
-                                      width: 4,
-                                      height: 16,
-                                      decoration: BoxDecoration(
-                                        color: roleColor,
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                    ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                              ...category.entries.map((item) {
+                                final isSelected =
+                                    isNavEntryActive(item, currentRoute);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: Material(
+                                    color: isSelected
+                                        ? roleColor.withValues(alpha: 0.08)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(6),
+                                      onTap: () {
+                                        if (item.route != currentRoute) {
+                                          context.go(item.route);
+                                        }
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 7),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              isSelected
+                                                  ? item.selectedIcon
+                                                  : item.icon,
+                                              size: 16,
+                                              color: isSelected
+                                                  ? roleColor
+                                                  : AppColors.textSecondary,
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                item.label,
+                                                style: TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                  color: isSelected
+                                                      ? roleColor
+                                                      : AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isSelected)
+                                              Container(
+                                                width: 3,
+                                                height: 14,
+                                                decoration: BoxDecoration(
+                                                  color: roleColor,
+                                                  borderRadius:
+                                                      BorderRadius.circular(2),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ])
+                        .toList(),
                   ),
                 ),
 
@@ -841,7 +2088,8 @@ class ResponsiveScaffold extends ConsumerWidget {
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight, width: 1),
+                      bottom:
+                          BorderSide(color: AppColors.borderLight, width: 1),
                     ),
                   ),
                   child: Row(
@@ -883,16 +2131,17 @@ class ResponsiveScaffold extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(6),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
+                                      horizontal: 14, vertical: 7),
                                   decoration: BoxDecoration(
                                     color: isSel
-                                        ? roleColor.withValues(alpha: 0.1)
+                                        ? roleColor.withValues(alpha: 0.12)
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(999),
                                     border: Border.all(
                                       color: isSel
-                                          ? roleColor.withValues(alpha: 0.3)
+                                          ? roleColor.withValues(alpha: 0.35)
                                           : Colors.transparent,
+                                      width: 1.0,
                                     ),
                                   ),
                                   child: Text(
@@ -901,7 +2150,7 @@ class ResponsiveScaffold extends ConsumerWidget {
                                       fontSize: 12,
                                       fontWeight: isSel
                                           ? FontWeight.w700
-                                          : FontWeight.w600,
+                                          : FontWeight.w500,
                                       color: isSel
                                           ? roleColor
                                           : AppColors.textSecondary,
@@ -923,12 +2172,18 @@ class ResponsiveScaffold extends ConsumerWidget {
                 Expanded(
                   child: Container(
                     color: const Color(0xFFF8FAFC),
-                    child: Center(
+                    width: double.infinity,
+                    height: double.infinity,
+                    child: Align(
+                      alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(
                           maxWidth: AppBreakpoints.maxContentWidth,
                         ),
-                        child: body,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: body,
+                        ),
                       ),
                     ),
                   ),

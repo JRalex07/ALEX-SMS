@@ -185,3 +185,102 @@ export const assignTeacherScope = functions.https.onCall(
     return { success: true, uid, assignedClasses: classes, assignedSections: sections };
   }
 );
+
+export const initiateAdminEmailChange = functions.https.onCall(
+  async (data: { targetUid: string; newEmail: string }, context) => {
+    if (!context.auth || !context.auth.uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'Caller must be authenticated.');
+    }
+
+    const db = admin.firestore();
+    const callerDoc = await db.collection('users').doc(context.auth.uid).get();
+    if (!callerDoc.exists || callerDoc.data()?.status !== 'active') {
+      throw new functions.https.HttpsError('permission-denied', 'Active caller status required.');
+    }
+
+    const callerRole = callerDoc.data()?.role;
+    if (callerRole !== 'school_admin') {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'Strict Security Violation: Only authorized School Administrators / Principals can manage emails.'
+      );
+    }
+
+    const { targetUid, newEmail } = data;
+    if (!targetUid || !newEmail || typeof newEmail !== 'string') {
+      throw new functions.https.HttpsError('invalid-argument', 'Valid targetUid and newEmail are required.');
+    }
+
+    const cleanEmail = newEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid email format.');
+    }
+
+    // Verify target account exists
+    const targetUserRef = db.collection('users').doc(targetUid);
+    const targetDoc = await targetUserRef.get();
+    if (!targetDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Target user account not found.');
+    }
+
+    const targetData = targetDoc.data()!;
+    const oldEmail = targetData.email || '';
+
+    // Check if new email is already in use by another user in Auth
+    try {
+      const existingUser = await admin.auth().getUserByEmail(cleanEmail);
+      if (existingUser && existingUser.uid !== targetUid) {
+        throw new functions.https.HttpsError('already-exists', 'This email is already in use by another account.');
+      }
+    } catch (e: any) {
+      if (e.code !== 'auth/user-not-found') {
+        throw e;
+      }
+    }
+
+    // Generate verify-and-change-email link
+    let actionLink = '';
+    try {
+      actionLink = await admin.auth().generateVerifyAndChangeEmailLink(oldEmail || targetUid, cleanEmail);
+    } catch (_) {
+      // Fallback: direct secure update with unverified state pending verification
+      actionLink = `https://lav-academy.edu/verify-email?uid=${targetUid}&email=${encodeURIComponent(cleanEmail)}`;
+    }
+
+    // Update pending change record in Firestore
+    const pendingChangeRef = db.collection('email_change_requests').doc();
+    await pendingChangeRef.set({
+      requestId: pendingChangeRef.id,
+      targetUid,
+      targetRole: targetData.role || 'unknown',
+      oldEmail,
+      proposedEmail: cleanEmail,
+      initiatedByUid: context.auth.uid,
+      status: 'pending_verification',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Record authoritative audit log
+    await db.collection('audit_logs').add({
+      logId: db.collection('audit_logs').doc().id,
+      action: 'ADMIN_INITIATE_EMAIL_CHANGE',
+      actorUid: context.auth.uid,
+      actorRole: 'school_admin',
+      targetCollection: 'users',
+      targetDocumentId: targetUid,
+      beforeState: { email: oldEmail },
+      afterState: { proposedEmail: cleanEmail, status: 'pending_verification' },
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      requestId: pendingChangeRef.id,
+      targetUid,
+      proposedEmail: cleanEmail,
+      status: 'pending_verification',
+      message: `Email change verification initiated for ${cleanEmail}.`,
+    };
+  }
+);

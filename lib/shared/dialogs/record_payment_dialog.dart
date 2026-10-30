@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/breakpoints.dart';
 import '../../core/constants/role_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../models/fee_model.dart';
@@ -10,6 +11,7 @@ class RecordPaymentDialog extends StatefulWidget {
     required String studentId,
     required String payerUserId,
     required int amountPaise,
+    required String paymentMethod,
     required String notes,
   })? onPaymentRecorded;
 
@@ -27,6 +29,7 @@ class RecordPaymentDialog extends StatefulWidget {
       required String studentId,
       required String payerUserId,
       required int amountPaise,
+      required String paymentMethod,
       required String notes,
     })? onPaymentRecorded,
   }) {
@@ -48,7 +51,7 @@ class _RecordPaymentDialogState extends State<RecordPaymentDialog> {
   late final TextEditingController _invoiceIdCtrl;
   late final TextEditingController _studentIdCtrl;
   final _amountCtrl = TextEditingController();
-  final _refCtrl = TextEditingController(text: 'Cash receipt at bursar counter');
+  final _refCtrl = TextEditingController();
   String _paymentMode = 'Cash';
   bool _isLoading = false;
   String? _errorMessage;
@@ -56,12 +59,10 @@ class _RecordPaymentDialogState extends State<RecordPaymentDialog> {
   @override
   void initState() {
     super.initState();
-    _invoiceIdCtrl = TextEditingController(text: widget.defaultInvoice?.invoiceId ?? 'INV_2026_001');
-    _studentIdCtrl = TextEditingController(text: widget.defaultInvoice?.studentId ?? 'STU_2026_001');
-    if (widget.defaultInvoice != null) {
+    _invoiceIdCtrl = TextEditingController(text: widget.defaultInvoice?.invoiceId ?? '');
+    _studentIdCtrl = TextEditingController(text: widget.defaultInvoice?.studentId ?? '');
+    if (widget.defaultInvoice != null && widget.defaultInvoice!.outstandingBalancePaise > 0) {
       _amountCtrl.text = (widget.defaultInvoice!.outstandingBalancePaise / 100).toStringAsFixed(2);
-    } else {
-      _amountCtrl.text = '5000.00';
     }
   }
 
@@ -89,15 +90,18 @@ class _RecordPaymentDialogState extends State<RecordPaymentDialog> {
     });
 
     try {
-      if (widget.onPaymentRecorded != null) {
-        await widget.onPaymentRecorded!(
-          invoiceId: _invoiceIdCtrl.text.trim(),
-          studentId: _studentIdCtrl.text.trim(),
-          payerUserId: 'parent_counter_user',
-          amountPaise: parse.amountPaise!,
-          notes: 'Mode: $_paymentMode | Ref: ${_refCtrl.text.trim()}',
-        );
+      final handler = widget.onPaymentRecorded;
+      if (handler == null) {
+        throw StateError('Payment posting is not configured for this screen. No ledger changes were made.');
       }
+      await handler(
+        invoiceId: _invoiceIdCtrl.text.trim(),
+        studentId: _studentIdCtrl.text.trim(),
+        payerUserId: _studentIdCtrl.text.trim(),
+        amountPaise: parse.amountPaise!,
+        paymentMethod: _paymentMode.toLowerCase().replaceAll(' ', '_'),
+        notes: 'Mode: $_paymentMode | Ref: ${_refCtrl.text.trim()}',
+      );
 
       if (mounted) {
         Navigator.pop(context);
@@ -127,67 +131,87 @@ class _RecordPaymentDialogState extends State<RecordPaymentDialog> {
         children: [
           Icon(Icons.point_of_sale, color: AppColors.accountantEmerald),
           SizedBox(width: 8),
-          Text('Record Counter / Offline Fee', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          Expanded(
+            child: Text(
+              'Record Counter / Offline Fee',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            ),
+          ),
         ],
       ),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _invoiceIdCtrl,
-                decoration: const InputDecoration(labelText: 'Invoice ID (e.g. INV_2026_001)'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Invoice ID is required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _studentIdCtrl,
-                decoration: const InputDecoration(labelText: 'Student ID (e.g. STU_2026_001)'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Student ID is required' : null,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
+        constraints: AppResponsive.dialogConstraints(context, maxWidth: 460),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _invoiceIdCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Invoice ID (e.g. INV_2026_001)'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Invoice ID is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _studentIdCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Student ID (e.g. STU_2026_001)'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Student ID is required' : null,
+                ),
+                const SizedBox(height: 12),
+                AdaptiveFormRow(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    TextFormField(
                       controller: _amountCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(
                         labelText: 'Amount (₹ INR)',
                         prefixIcon: Icon(Icons.currency_rupee, size: 16),
                       ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Amount is required' : null,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Amount is required' : null,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
+                    DropdownButtonFormField<String>(
                       initialValue: _paymentMode,
-                      decoration: const InputDecoration(labelText: 'Payment Mode'),
+                      decoration:
+                          const InputDecoration(labelText: 'Payment Mode'),
                       items: const [
                         DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                        DropdownMenuItem(value: 'Cheque', child: Text('Cheque')),
-                        DropdownMenuItem(value: 'Bank POS', child: Text('Bank POS')),
-                        DropdownMenuItem(value: 'Demand Draft', child: Text('Demand Draft')),
+                        DropdownMenuItem(
+                            value: 'Cheque', child: Text('Cheque')),
+                        DropdownMenuItem(
+                            value: 'Bank POS', child: Text('Bank POS')),
+                        DropdownMenuItem(
+                            value: 'Demand Draft',
+                            child: Text('Demand Draft')),
                       ],
                       onChanged: (v) => setState(() => _paymentMode = v!),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _refCtrl,
-                decoration: const InputDecoration(labelText: 'Reference Notes / Cheque Number'),
-              ),
-              if (_errorMessage != null) ...[
+                  ],
+                ),
                 const SizedBox(height: 12),
-                Text(_errorMessage!, style: const TextStyle(color: AppColors.dangerRed, fontSize: 12)),
+                TextFormField(
+                  controller: _refCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Reference Notes / Cheque Number'),
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_errorMessage!,
+                      style: const TextStyle(
+                          color: AppColors.dangerRed, fontSize: 12)),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

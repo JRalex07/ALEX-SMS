@@ -7,6 +7,8 @@ import 'package:lav_sms/models/student_model.dart';
 import 'package:lav_sms/models/user_model.dart';
 import 'package:lav_sms/providers/auth_providers.dart';
 import 'package:lav_sms/providers/child_context_provider.dart';
+import 'package:lav_sms/providers/parent_services_providers.dart';
+import 'package:lav_sms/models/parent_service_models.dart';
 import 'package:lav_sms/shared/dialogs/parent_portal_dialogs.dart';
 
 void main() {
@@ -58,6 +60,78 @@ void main() {
           selectedChildProvider.overrideWith(
             (ref) => initialChild ?? mockStudent1,
           ),
+          childHomeworkProvider.overrideWith((ref) async => [
+                HomeworkItem(
+                  id: 'HW_001',
+                  title: 'Mathematics: Fractions & Decimals Exercise 4.2',
+                  subjectName: 'Mathematics',
+                  classId: 'CLASS_5',
+                  sectionId: 'SEC_A',
+                  assignedDate:
+                      DateTime.now().subtract(const Duration(days: 1)),
+                  dueDate: DateTime.now().add(const Duration(days: 1)),
+                  instructions: 'Complete all questions in your homework notebook.',
+                  submissionStatus: 'pending',
+                  teacherName: 'Mrs. S. Sharma',
+                ),
+              ]),
+          childTransportProvider
+              .overrideWith((ref) async => const TransportInfo(
+                    busNumber: 'DL-01-AB-1234 (Bus #04)',
+                    routeName: 'Route 4: Green Park - South Extension - Campus',
+                    driverName: 'Mr. Rajesh Kumar',
+                    driverPhone: '+91 98765 43210',
+                    conductorName: 'Mr. Sunil Sharma',
+                    conductorPhone: '+91 98765 12345',
+                    pickupStop: 'Green Park Metro Station Gate 2',
+                    dropStop: 'Green Park Metro Station Gate 2',
+                    pickupTime: '07:25 AM',
+                    dropTime: '03:15 PM',
+                    vehicleType: 'School Bus (40-Seater, GPS & CCTV Equipped)',
+                  )),
+          childOnlineQuizzesProvider.overrideWith((ref) async => [
+                OnlineQuizItem(
+                  id: 'QUIZ_01',
+                  title: 'Mathematics Weekly Evaluation: Fractions & Decimals',
+                  subjectName: 'Mathematics',
+                  classId: 'CLASS_5',
+                  sectionId: 'SEC_A',
+                  durationMinutes: 25,
+                  totalQuestions: 2,
+                  totalMarks: 20,
+                  dueAt: DateTime.now().add(const Duration(days: 2)),
+                  isCompleted: false,
+                  questions: [
+                    QuizQuestion(
+                      id: 'Q1',
+                      questionText:
+                          'What is the Highest Common Factor (HCF) of 24 and 36?',
+                      options: const ['6', '8', '12', '18'],
+                      correctOptionIndex: 2,
+                    ),
+                    QuizQuestion(
+                      id: 'Q2',
+                      questionText: 'What is 5 + 5?',
+                      options: const ['8', '10', '12', '14'],
+                      correctOptionIndex: 1,
+                    ),
+                  ],
+                ),
+              ]),
+          parentComplaintsProvider.overrideWith((ref) async => [
+                ParentComplaint(
+                  id: 'CMP_001',
+                  referenceNumber: 'LAV-CMP-2026-084',
+                  parentUid: 'PARENT_USER_01',
+                  studentId: 'STU_TANISHK_01',
+                  studentName: 'Tanishk Anand',
+                  category: 'Transport & Safety',
+                  subject: 'Morning Route 4 Delay Inquiry',
+                  description: 'Bus arrived late at Green Park metro station.',
+                  status: 'in_review',
+                  createdAt: DateTime.now().subtract(const Duration(days: 1)),
+                ),
+              ]),
         ],
         child: const MaterialApp(
           home: ParentDashboardScreen(),
@@ -144,7 +218,7 @@ void main() {
         'A-Calender',
         'Online Test',
         'Location',
-        'Change Password',
+        'Change Phone',
       ];
 
       for (final opt in options) {
@@ -276,7 +350,7 @@ void main() {
       expect(find.text('Fee Bursar'), findsOneWidget);
     });
 
-    testWidgets('8. Change Password dialog validates input requirements',
+    testWidgets('8. Change Phone tile is present for parents and Change Password is not displayed',
         (tester) async {
       tester.view.physicalSize = const Size(800 * 2.0, 2600 * 2.0);
       tester.view.devicePixelRatio = 2.0;
@@ -285,15 +359,8 @@ void main() {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 
-      final pwdFinder = find.text('Change Password');
-      await tester.tap(pwdFinder);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ChangePasswordDialog), findsOneWidget);
-      expect(find.text('Change Account Password'), findsOneWidget);
-      expect(find.text('Current Password'), findsOneWidget);
-      expect(find.text('New Password'), findsOneWidget);
-      expect(find.text('Confirm New Password'), findsOneWidget);
+      expect(find.text('Change Phone'), findsOneWidget);
+      expect(find.text('Change Password'), findsNothing);
     });
   });
 }
